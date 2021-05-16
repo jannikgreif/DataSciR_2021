@@ -1,0 +1,88 @@
+---
+output:
+  pdf_document: default
+bibliography: references.bib
+csl: ieee.csl
+title: DataSciR - Project Proposal
+author: "Frank Dreyer, Kolja Günther, Jannik Greif"
+date: "20.05.2021"
+header-includes:
+  - \usepackage{titling}
+  - \pretitle{\begin{center}
+    \includegraphics[width=2in,height=2in]{"datascir.png"}\LARGE\\}
+  - \posttitle{\end{center}}
+---
+\newpage
+
+# The Impact of NBA player-related Social Media Posts on their on-court Performance - An Analysis 
+
+
+## Team Member
+
+```{r team, echo = FALSE}
+library(knitr)
+team <- data.frame(Name = c("Jannik Greif","Kolja Günther","Frank Dreyer"),
+                   `Course of Studies` =c("M.Sc. Wirtschaftsinformatik","M.Sc. Data and Knowledge Engineering","M.Sc. Data and Knowledge Engineering"),
+                  Mail = c("jannik.greif@st.ovgu.de","kolja.guenther@st.ovgu.de","frank.dreyer@st.ovgu.de"), check.names = FALSE)
+kable(team)
+```
+
+## Overview
+
+The project aims to discover a significant impact of social media posts addressed to NBA players before matches with respect to their influence on the players game performance. For this purpose, we consider NBA players that are highly active on twitter and extract tweets that are addressed to them within a short period of time before matches via the twitter API. A sentiment analysis indicates the attitude of the posts. The resulting sentiment polarity scores test if there is a correlation between social media posts and players on-court performance.
+
+## Background and Motivation
+With the growing presence of social media in all areas of life, allowing people from around the world to react to current events in real-time, an increasingly controversial discussion can be observed. The influence of social media is analyzed in scientific studies [-@kapoor_advances_2018;-@berryman_social_2018]. Sports athletes, who are often required to maintain a social media presence are no exception [-@academy_does_2008]. Among researchers in the sports field there is a consensus that the mental state of an athlete can have a significant impact on his or her performance [-@xu_measuring_2015]. However, only little research has been conducted in order to analyze how social media usage directly influences athletes performance. One study tries to capture the mood of basketball players in the NBA from tweets they posted just before a match to analyze how the predicted mood influences their performance [-@xu_measuring_2015]. Another study uses a similar approach on tennis players and additionally analyze the relationship between number of tweets posted before matches and performance [-@gruttner_new_2020]. Even though both contributions show that athletes with a bad predicted mood tend to perform worse on-court they suffer from two limitations: 
+
+- The number of tweets an athlete posts per day is rather limited 
+- The predicted moods are not free of bias since an athlete might only post tweets how he or she wants to be seen on twitter (also indicated in [-@gruttner_new_2020])
+
+Both of these limiting factors may lead to an inaccurate prediction of the mental state of athletes. We believe that not only their own posts reflect their mood, but also posts they receive from peers and fans. This can described as collective moods. Collective moods can for example take place at a concert or religious ceremony, often associated with the experience of ecstasy/ trance, i.e. positive feelings, but also negative feelings [-@trcka_collective_2017]. This could also apply to social media posts.
+
+\newpage
+
+## Project Objectives
+
+The main objectives for the project are: 
+
+- Import and transformation of a suitable NBA players on-field performance dataset 
+- Detection and extraction of relevant social media posts related to selected NBA players 
+- Implementation and execution of a sentiment analysis on selected posts to find those that express strong reactions to or from the players 
+- Implementation of an exploratory data analysis to find a possible positive correlation between strong sentiments and player performance 
+- Validation of a possible correlation with Chi Square/Two Proportion Z-Test significance test
+
+The project tries to answer the following question:  \  
+
+**Can we find a correlation between negative/positive social media posts related to a specific NBA player and his on-field performance in the following matches?**
+
+## Datasets
+
+- Twitter API [-@noauthor_twitter_nodate-1]
+- NBA players on-field performance [-@noauthor_nba_nodate]
+- Twitter accounts [-@noauthor_twitter_nodate]
+  
+
+## Design Overview
+
+Formulate hypothesis which substance is tested within the analysis:
+
+1. A bad social media reputation has a negative impact on player performance
+2. High social media usage has a negative impact on player performance (tested and significant according to [-@gruttner_new_2020])
+3. Bad mood of player leads to a bad performance (tested but not significant [-@gruttner_new_2020])
+
+
+## Time Plan
+
+- Phase 1: Literature research about related works, methods and approaches
+
+- Phase 2: Data cleaning, transformation and integration
+
+- Phase 3: Exploratory data analysis
+
+- Phase 4: Evaluation of the results
+
+- Phase 5: Paperwork and finalization
+
+\newpage
+
+## Literature
