@@ -16,14 +16,22 @@ link-citations: true
 ---
 \newpage
 
+## Github Repository
+
+The project is documented here: https://github.com/jannikgreif/DataSciR_2021
+
+
 ## Team Member
 
 ```{r team, echo = FALSE}
 library(knitr)
+library(kableExtra)
 team <- data.frame(Name = c("Jannik Greif","Kolja Günther","Frank Dreyer"),
                    `Course of Studies` =c("M.Sc. Wirtschaftsinformatik","M.Sc. Data and Knowledge Engineering","M.Sc. Data and Knowledge Engineering"),
                   Mail = c("jannik.greif@st.ovgu.de","kolja.guenther@st.ovgu.de","frank.dreyer@st.ovgu.de"), check.names = FALSE)
-kable(team)
+kbl(team, booktabs = T, linesep = "") %>%
+  kable_styling(position = "center")%>%
+  kable_styling(latex_options = "HOLD_position")
 ```
 
 ## Overview
@@ -39,78 +47,239 @@ Xu and Yu [-@xu_measuring_2015] tried to capture the mood of basketball players 
 - The number of tweets an athlete posts per day is rather limited 
 - The predicted moods are not free of bias since an athlete might only post tweets how he or she wants to be seen on twitter (also indicated in [-@gruttner_new_2020])
  
-Thus, we assume to quantify their career through their on-field performance and therefore make a possible impact of Social Media posts visible, if some conspicuous change in their performance is happening and can be correlated to these posts.
- 
- 
-Both of these limiting factors may lead to an inaccurate prediction of the mental state of athletes. We believe that not only their own posts reflect their mood, but also posts they receive from peers and fans. This can be described as collective moods. Collective moods can for example take place at a concert or religious ceremony, often associated with the experience of ecstasy/ trance, i.e. positive feelings, but also negative feelings [-@trcka_collective_2017]. This could also apply to social media posts.
-
+Both of these limiting factors may lead to an inaccurate prediction of the mental state of athletes. We believe that not only their own posts reflect their mood, but also posts they receive from peers and fans, since (social) media response has an impact [-@academy_does_2008]. Collective mood could also be a factor regarding this problem. Collective mood can for example take place at a concert or religious ceremony, often associated with the experience of ecstasy/ trance, i.e. positive feelings, but also negative feelings [-@trcka_collective_2017]. This could also apply to fans expressing support to their idol or insult disliked players.
 
 \newpage
 
 ## Project Objectives
 
-This project aims to answer the following research question: \newline    
-**Does the attitude of social media posts addressed to NBA players affect their performance in games?**
+This project aims to answer the following research question: \newline
+**Does the attitude of social media posts addressed to NBA players affect their performance in games?** \newline
 
-The main objectives for successfully running this project are:
+To answer the specified research question the following objectives can be formulated: \newline
 
-- Loading & transformation of a suitable NBA players on-court performance dataset
-- Detection & extraction of relevant Social Media posts related to selected NBA players
-- Implementation & running of a Sentiment Analysis on the selected posts to find those that express strong reactions to or from the players
-- Implementation of a exploratory data analysis with R to find a possible positive correlation between strong sentiments and player performance
-- Validation of a possible correlation with Chi Square/Two Proportion Z-Test significance test
+**Objective 1: Data Acquisition and Preprocessing** \newline
+Acquire game statistics of NBA players that are highly active on twitter and the tweets they received from peers and fans in an appropriate time window before games. The game statistics should include an appropriate metric that describes how the player performed within a corresponding game. The tweets need to be preprocessed accordingly to have them in an appropriate format in order to use them for further analysis steps. 
+
+**Objective 2: Sentiment Analysis** \newline 
+Capture the attitude of the extracted posts by assigning a polarity score to each tweet using sentiment analysis. The polarity scores of tweets a player received before a game need to be aggregated appropriately and linked to the respective game. 
+
+**Objective 3: Exploratory Data Analysis** \newline
+Analyze the association between the aggregated polarity scores of the tweets a player received before games and the performance of the player within the games using appropriate performance metrics. Additionally the strength and significance of the correlation should be evaluated. 
+
+**Objective 4: Presentation ** \newline
+Document the implementation and the results of the analysis in a document. Additionally the results are summarized in a screencast and a web application.
  
-With this we can refine our initial research question to the following: \newline    
-**Can we find a correlation between negative/positive Social Media posts related to a specific NBA player and his on-field performance in the following matches?**
+With this we can refine our initial research question as follows: \newline
+**Can we find a correlation between negative/positive Social Media posts related to a specific NBA player and his on-court performance in the following matches?**
+
 
 
 ## Datasets
 
-- Twitter API: \newline    
-In order to access the twitter API it is a prerequisite to create a twitter account and apply for a developer account. After the acceptance it is required to register an app to generate the API keys [-@noauthor_twitter_nodate-1]. To access the twitter data in R, we are using the package twitteR [-@noauthor_cran_nodate]. 
+**Twitter API/ rtweet:** \newline    
+In order to access the twitter API it is a prerequisite to create a twitter account and apply for a developer account. After the acceptance it is required to register an app to generate the API keys [-@noauthor_twitter_nodate-1]. To access the twitter data in R, we are using the package rtweet [-@kearney_collecting_2020]. 
 Important functionalities are:
 ```{r twitter api, echo = FALSE}
 library(knitr)
-team <- data.frame(Functionaly = c("load_tweets_db","register_db_backend", "retweets", "searchTwitter", "search_twitter_and_store","setup_twitter_oauth","timelines", "twListToDF", "user-class "), 
-                   Explanation = c("Functions to persist/load twitteR data to a database",
-                                   "Functions to setup a database backend for twitteR",
-                                   "Functions to work with retweets",
-                                   "Search twitter",
-                                   "A function to store searched tweets to a database",
-                                   "Sets up the OAuth credentials for a twitteR session",
-                                   "Functions to view Twitter timelines",
-                                   "A function to convert twitteR lists to data.frames",
-                                   "A container object to model Twitter users") )
-kable(team)
+funtions <- data.frame(Functionality = c("create_token","get_mentions", "get_timeline", "lookup_users", "parse_stream","plain_tweets","search_tweets", "stopwordslangs", "write_as_csv"), 
+                   Explanation = c("Creating Twitter authorization token(s)",
+                                   "Get mentions for the authenticating user",
+                                   "Get one or more user timelines (tweets posted by target user(s))",
+                                   "Get Twitter users data for given users (user IDs or screen names)",
+                                   "Converts Twitter stream data (JSON file) into parsed data frame",
+                                   "Clean up character vector (tweets) to more of a plain text",
+                                   "Get tweets data on statuses identified via search query",
+                                   "Twitter stop words in multiple languages data",
+                                   "Save Twitter data as a comma separated value file") )
+kbl(funtions, booktabs = T, linesep = "") %>%
+  kable_styling(position = "center") %>%
+  kable_styling(latex_options = "HOLD_position") %>%
+  kable_styling(latex_options = "striped")
+```
+\newpage
+The following example illustrates the different variables that are saved using search_tweets().
+```{r rtweet}
+options(width = 100)
+library(rtweet)
+names(search_tweets("#NBA", n = 10))
 ```
 
+\newpage
 
+**NBA players on-field performance and Twitter accounts:** \newline
+Provides historized basketball statistics about different players and teams in various US-American and European leagues [-@noauthor_nba_nodate]. 
+From this site we aim to extract game statistics from NBA players that are active on twitter. 
+basketball-reference provides a list of twitter accounts from various players that we want to incorporate in this process [-@noauthor_twitter_nodate].
+The statistics of a specific game of a player can be reached by clicking on the players name (e.g. from the twitter account list), selecting a season the player was active (regular season or playoffs) and finally selecting a game within this season by clicking on its date. Then a table shows up that shows the player-statistics of the selected game. 
+This table provides the following information: 
 
-
-- NBA players on-field performance [-@noauthor_nba_nodate]
-- Twitter accounts [-@noauthor_twitter_nodate]
+```{r basketball-reference, echo = FALSE}
+library(knitr)
+table <- data.frame(
+  Attribute = c("Starters / Reserves","MP","FG","FGA","FG%","3P","3PA","3P%","FT","FTA","FT%","ORB","DRB","TRB","AST","STL","BLK","TOV","PF","PTS","+/-"),
+  `Data Type` = c("String","Timediff","Int","Int","Float","Int","Int","Float","Int","Int","Float",rep("Int",times=10)),
+  Description = c("Name of player (separated in starters and reserves)","Minutes Played","Field Goals: number made shots (excluding free throws)","Field Goal Attempts = number of shot attempts (excluding free throws)","Field Goal Percentage: fraction of field goal attempts (FG/FGA)","3-Point Field Goals: number of made 3-point shots","3-Point Field Goal Attempts: number of 3-point shot attempts","3-Point Field Goal Percentage: fraction of three point shot attempts (3P/3PA)","Free Throws: number of free throw shots ","Free Throw Attempts: number of free throw shot attempts","Free Throw Percentage: fraction of free throw attempts (FT/FTA)","Offensive Rebounds","Defensive Rebounds","Total Rebounds (ORB+TRB)","Assists","Steals","Blocks","Turnovers","Personal Fouls","Points made","Estimates the players contribution to the team when the player is on the court"), check.names = FALSE
+)
+kbl(table, booktabs = T, linesep = "") %>%
+  kable_styling(position = "center") %>%
+  kable_styling(latex_options = "HOLD_position") %>%
+  kable_styling(latex_options = "striped")
+```
   
 
 ## Design Overview
 
-Formulate hypothesis which substance is tested within the analysis:
+To answer the specified research question we will use the statistical programming language R including the following packages: 
 
-1. A bad social media reputation has a negative impact on player performance
-2. High social media usage has a negative impact on player performance (tested and significant according to [-@gruttner_new_2020])
-3. Bad mood of player leads to a bad performance (tested but not significant [-@gruttner_new_2020])
+- tidyverse (includes packages like ggplot2 for visualization, dplyr for data manipulation, etc.) [-@tidyverse]
+- rvest [-@rvest]
+- rtweet [@kearney_collecting_2020]
+- tidytext [-@tidytext]
+- Shiny [-@shiny]
+
+We plan to address the project objectives as follows: \newline
+
+**Objective 1: Dataset Creation** 
+
+- To extract the tweets we will use rtweet which provides access to the Twitter API.
+- To extract the game statistics of NBA players from basketball-reference.com we will make use of the web scraping package rvest.
+Since the measured performance of a player is rather unreliable, if they do not get enough playing time we will only consider players that on average get at least 20 minutes of playing time. 
+- The performance of players is rather unstable over many seasons. To address this issue we will only consider games in the span of two seasons for a player. 
+- To make sure that the players selected for our analysis actually read tweets they receive from peers and fans we will analyze the number of daily received tweets to which they react (e.g. received tweets they like/dislike, answer, etc.) and select a subset of the top twitter-active NBA players according to this measure. 
+- Since the NBA prohibits social media usage of players and coaches beginning 45 minutes before tip off [-@noauthor_nba_2009], we will consider all tweets that a player receives before that time in a 12 hour window to be able to analyze the immediate effects of the tweets a player receives on the day before a match on his game performance. 
+- AFINN as sentiment lexicon (provides sentiment scores for a list of words in a range between -5 for strongly negative and +5 for strongly positive sentiments)
+
+**Objective 2: Exploratory Data Analysis**
+
+- For data visualization and to manipulate the data frame with respect to the analysis we will use ggplot2 and dplyr, respectively (both included in tidyverse)
+- To measure the performance of a player in a game we will use his Plus/Minus score (see above) since it considers the overall contribution of the player to the team when he is on-court (also includes his defensive effort and generally the contribution to his team to score points). 
+- Observe how the sentiment scores of the tweets the individual selected players received developed over time to indicate if there are prominent time spans where the sentiment score was particularly high or low. 
+- Compare the variability of the sentiment scores between the players to identify players that have a rather unstable social media reputation among peers and fans. 
+
+**Objective 3: Presentation**
+
+- Finish the R Markdown notebook with all previously done work
+- Set up the project website (most likely using blogdown and integrate shiny apps)
+- Record the screencast 
+- Prepare the final presentation 
 
 
 ## Time Plan
 
-- Phase 1: Literature research about related works, methods and approaches
+**Phase 1: Literature Research about related works, methods and approaches/ Initial project setup** \newline 
+Finding relevant literature of related works is significant to identify, whether and to which extent research was already done that is close to our project. On the one hand this helps to avoid doing research that was already done, on the other hand we can use the perceptions of these literature as foundation for our work.
+Therefore one scope of this phase is to identify related literature and refine our project based on these findings. Furthermore we then can set up the methods and approaches to use for the coming phases like methods for a well functioning data preparation pipeline, well suited data analysis approaches or evaluation criteria. \newline 
 
-- Phase 2: Data cleaning, transformation and integration
+Steps:
 
-- Phase 3: Exploratory data analysis
+- Finding a research subject that is both, novel and not yet too heavily exploited by other research groups
+- Review of related works, methods and approaches that fit our subject and can provide background information, additional insights and useful findings as well as help to sharpen the initial idea of the project
+- Retrieval of relevant data that is needed to investigate our research question and checking for suitability (relevant features, data types, how much transformation is needed, …)
+- Formulation of the Project Proposal \newline 
 
-- Phase 4: Evaluation of the results
+Milestones/Results:
 
-- Phase 5: Paperwork and finalization
+- Project Proposal Submission
+- Project Proposal Feedback \newline 
+
+**Phase 2: Data Cleaning, Transformation & Integration** \newline 
+Before diving deep into the main task of Exploratory Data Analysis, the relevant data first needs to be extracted, cleaned, transformed and integrated. The main challenge in this phase will be to identify relevant Twitter posts, to prepare them for Sentiment Analysis and finally extract the attitude of each post. Additionally, the NBA-dataset has to be transformed and integrated to fit with the sentiment polarity scores created beforehand. \newline 
+
+Steps:
+
+- Identification, extraction & cleaning (tokenization, stopword removal, stemming/lemmatization) of relevant Twitter posts via Twitter API
+- Sentiment Analysis of the extracted posts to generate polarity scores
+- Cleaning & transformation of the NBA dataset
+- Integration of the preprocessed datasets \newline 
+
+Milestones/Results:
+
+- Final dataset for analysis \newline 
+
+**Phase 3: Exploratory Data Analysis** \newline 
+During the main phase of our project, the actual analysis for possibly existing positive/negative correlations between the extracted Twitter posts and the NBA player performance data is to be done. The data needs to be assessed for relevant variables, expressing the behaviours we want to observe and \newline 
+
+Steps:
+
+- Descriptive data analysis: Gaining insights into the datasets by frequency analysis, distributions, means, single feature comparison, etc.
+- Choice of meaningful predictor and outcome variables that hold the information needed for our correlation analysis
+- Identification of possible correlations based on these features
+- Creation of meaningful plots to underpin our findings \newline 
+
+Milestones/Results:
+
+- Final Correlation analysis \newline 
+
+**Phase 4: Evaluation of the Results** \newline 
+To test whether our initial research question holds true, a hypothesis testing needs to be done. For this purpose, the correlations found in the phase before need to be checked for significance by using two possible solutions: Either a Chi-Square test and/or a Two-Proportion Z-test can be used for this. The main reason for considering not only one significance test is… \newline 
+
+Steps:
+
+- Testing if and which of the hypotheses that we proclaimed beforehand holds, based on our correlation analysis results 
+- Statistical testing of the results’ significance with Chi-Square test and/or Two-Proportion Z-test \newline 
+
+Milestones/Results:
+
+- Final research results, suitable for expressive documentation & presentation of the project \newline 
+
+**Phase 5: Paperwork & Finalization** \newline 
+Finally, our research results need to be put in the right form. A Rmarkdown Project Notebook will contain all relevant information about the project, including an overview and motivation, related work, a detailed description of the data used, all relevant steps of the Exploratory Data Analysis and a final justification of and personal feedback to the project. \newline 
+
+Steps:
+
+- Creation of a Rmarkdown process notebook as documentation of the whole project process, beginning from the general idea, up to the discussion of final results and personal feedbacks about the overall workflow
+- Setting up a project website that represents our research results in an interactive fashion
+- Generation of Project screencast & presentation which tell a story about our project, underlined with meaningful plots and explanatory results \newline 
+
+Milestones/Results:
+
+- Final Project Submission
+- Project Presentation
+
+### Gantt Diagram
+
+```{r gantt, echo = FALSE,warnings = FALSE, message=FALSE}
+library("ganttrify")
+invisible(Sys.setlocale("LC_TIME","C"))
+
+gantt <- data.frame(wp = c(rep("Phase 1: Team Formation, Literature Research & Project Proposal",times = 6),
+                           rep("Phase 2: Data Cleaning, Transformation & Integration",times = 5),
+                           rep("Phase 3: Exploratory Data Analysis", times = 5),
+                           rep("Phase 4: Evaluation of the Results", times =3),
+                           rep("Phase 5: Paperwork & Finalization", times = 5)),
+                    activity = c("Find a research subject", "Review of related work", "Identification of relevant data","Formulation of a Project Proposal","Milestone: Proposal Submission","Milestone: Proposal Feedback",
+                                 "Identification & extraction of relevant Twitter posts","Sentiment Analysis","Transformation of NBA data","Integration of the datasets  & cleaning","Milestone: Final Dataset",
+                                 "Descriptive Data Analysis","Choice of meaningful variables","Identification of possible correlations","Creation of meaningful plots","Milestone: Final Correlation Analysis",
+                                 "Hypothesis testing","Statistical testing of result significance","Milestone: Final Research Results",
+                                 "Rmarkdown Process Notebook","Website","Screencast & presentation","Milestone: Final Project Submission","Milestone: Project Presentation"),
+                    start_date = as.Date(c("20.04.2021","25.04.2021","25.04.2021","25.04.2021","20.05.2021","22.05.2021","20.05.2021","24.05.2021","24.05.2021","30.05.2021","01.06.2021","02.06.2021","02.06.2021","07.06.2021","02.06.2021","12.06.2021","13.06.2021","13.06.2021","20.06.2021","21.06.2021","21.06.2021","21.06.2021","06.07.2021","09.07.2021"), format = "%d.%m.%Y"),
+                    end_date = as.Date(c("25.04.2021","15.05.2021","15.05.2021","20.05.2021","20.05.2021","22.05.2021","24.05.2021","30.05.2021","30.05.2021","01.06.2021","01.06.2021","07.06.2021","07.06.2021","12.06.2021","12.06.2021","12.06.2021","20.06.2021","20.06.2021","20.06.2021","06.07.2021","06.07.2021","06.07.2021","06.07.2021","09.07.2021"), format = "%d.%m.%Y"))
+
+ganttrify(project = gantt,
+          month_number_label = FALSE,
+          size_text_relative = 1,
+          size_wp = 3,
+          size_activity = 3,
+          exact_date = TRUE) +
+      ggplot2::geom_vline(xintercept = Sys.Date(),color="grey50")
+```
+
+### Responsibilities
+```{r responsibilities, echo = FALSE,warnings = FALSE, message=FALSE}
+responsibilities <- data.frame(Task = c("Find a research subject", "Review of related work", "Identification of relevant data","Formulation of a Project Proposal",
+                                 "Identification & extraction of relevant Twitter posts","Sentiment Analysis","Transformation of NBA data","Integration of the datasets  & cleaning",
+                                 "Descriptive Data Analysis","Choice of meaningful variables","Identification of possible correlations","Creation of meaningful plots",
+                                 "Hypothesis testing","Statistical testing of result significance",
+                                 "Rmarkdown Process Notebook","Website","Screencast & presentation"),
+                              Responsibility = c(rep("Team",times=4),"Jannik","Jannik, Kolja","Frank","Kolja",rep("Team",times=6),"Frank","Jannik","Kolja"))
+
+kbl(responsibilities, booktabs = T, linesep = "") %>%
+  kable_styling(position = "center") %>%
+  kable_styling(latex_options = "HOLD_position") %>%
+  kable_styling(latex_options = "striped")
+
+```
 
 \newpage
 
