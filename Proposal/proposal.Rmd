@@ -198,7 +198,8 @@ Milestones/Results:
 - Final dataset for analysis \newline 
 
 **Phase 3: Exploratory Data Analysis** \newline 
-During the main phase of our project, the actual analysis for possibly existing positive/negative correlations between the extracted Twitter posts and the NBA player performance data is to be done. The data needs to be assessed for relevant variables, expressing the behaviours we want to observe and \newline 
+During the main phase of our project, the analysis for possibly existing positive/negative correlations between the extracted Twitter posts and the NBA player performance data is to be done. At first a descriptive analysis, containing frequencies of variables, min. and max. values, means, etc., shall give insights into the dataset. Then, the data needs to be assessed for relevant variables, expressing the behaviours we want to observe and based on this, the actual analysis can be done.
+During the whole process, the results of our research get plotted in expressive figures which then find their way into the final project presentation, website and notebook. \newline 
 
 Steps:
 
