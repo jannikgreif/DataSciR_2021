@@ -212,16 +212,17 @@ Milestones/Results:
 - Final Correlation analysis \newline 
 
 **Phase 4: Evaluation of the Results** \newline 
-To test whether our initial research question holds true, a hypothesis testing needs to be done. For this purpose, the correlations found in the phase before need to be checked for significance by using two possible solutions: Either a Chi-Square test and/or a Two-Proportion Z-test can be used for this. The main reason for considering not only one significance test is… \newline 
+To test whether our initial research question holds true, a hypothesis testing needs to be done. For this purpose, the correlations found in the phase before need to be checked for significance by using one of several possible approaches. Assessing the proper significance test among Chi-Square test, regression, T-test, ANOVA test etc. (to just mention some) is one of the challenges which have to be tackled in this phase of our project. \newline
 
 Steps:
 
 - Testing if and which of the hypotheses that we proclaimed beforehand holds, based on our correlation analysis results 
-- Statistical testing of the results’ significance with Chi-Square test and/or Two-Proportion Z-test \newline 
+- Assessing a proper significance test for the given variables
+- Statistical testing of the results’ significance \newline
 
 Milestones/Results:
 
-- Final research results, suitable for expressive documentation & presentation of the project \newline 
+- Final research results, suitable for expressive documentation & presentation of the project \newline
 
 **Phase 5: Paperwork & Finalization** \newline 
 Finally, our research results need to be put in the right form. A Rmarkdown Project Notebook will contain all relevant information about the project, including an overview and motivation, related work, a detailed description of the data used, all relevant steps of the Exploratory Data Analysis and a final justification of and personal feedback to the project. \newline 
