@@ -187,8 +187,8 @@ Steps:
 
 Milestones/Results:
 
-- Project Proposal Submission
-- Project Proposal Feedback \newline 
+- Project proposal submission
+- Project proposal feedback \newline 
 
 **Phase 2: Data Cleaning, Transformation and Integration** \newline 
 Before diving deep into the main task of exploratory data analysis, the relevant data first needs to be extracted, cleaned, transformed and integrated. The main challenge in this phase will be to identify relevant Twitter posts, to prepare them for sentiment analysis and finally extract the attitude of each post. Additionally, the NBA-dataset has to be transformed and integrated to fit with the sentiment polarity scores created beforehand. \newline 
@@ -217,7 +217,7 @@ Steps:
 
 Milestones/Results:
 
-- Final Correlation analysis \newline 
+- Final correlation analysis \newline 
 
 **Phase 4: Evaluation of the Results** \newline 
 To test whether our initial research question holds true, hypothesis testing needs to be done. For this purpose, the correlations found in the phase before need to be checked for significance by using one of several possible approaches. Assessing the proper significance test among Chi-Square test, Regression, T-test, ANOVA test, etc. (to just mention some) is one of the challenges which have to be tackled in this phase of our project. \newline
