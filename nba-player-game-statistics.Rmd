@@ -1,0 +1,16 @@
+---
+title: 'Dataset Generation: NBA Player Game Statistics'
+author: "Frank Dreyer"
+date: "23 5 2021"
+output: html_document
+---
+
+# NBA Player Game Statistics
+
+To create the final dataset for our analysis one part is the extraction of game statistics from selected NBA players. In the following we will describe how to extract this kind of information from [basketball-reference.com](https://basketball-reference.com), a site which provides historized basketball statistics of basketball players and teams from varous US American and European leagues including the NBA.  
+
+## Setup
+
+```{r setup, warning = FALSE, message = FALSE}
+library(tidyverse)
+library(rvest)
