@@ -1,16 +1,55 @@
 ---
 title: 'Dataset Generation: NBA Player Game Statistics'
-author: "Frank Dreyer"
+author: "Frank Dreyer, Jannik Greif, Kolja Günther"
 date: "23 5 2021"
 output: html_document
 ---
 
-# NBA Player Game Statistics
+# Introduction
 
 To create the final dataset for our analysis one part is the extraction of game statistics from selected NBA players. In the following we will describe how to extract this kind of information from [basketball-reference.com](https://basketball-reference.com), a site which provides historized basketball statistics of basketball players and teams from varous US American and European leagues including the NBA.  
 
 ## Setup
 
+Before getting started let's first set up our environment. To extract the data from [basketball-reference.com](https://basketball-reference.com) we will will extensively use the web scraping library `rvest` in addition to the `tidyverse`.
+
 ```{r setup, warning = FALSE, message = FALSE}
 library(tidyverse)
 library(rvest)
+```
+
+
+## Extracting NBA Players with existing Twitter Accounts
+
+With our final game statistics dataset we want to be able to link game statistics of players to tweets they received on the same day before a game. For that reason we should only consider NBA players that have an existing Twitter account. Fortunately for us, [basketball-reference.com](https://basketball-reference.com) provides a list of [Twitter usernames of NBA players](https://www.basketball-reference.com/friv/twitter.html). Let's use this information and load it into a dataframe.
+
+```{r twitter-accounts}
+url_twitter_accounts <- "https://www.basketball-reference.com/friv/twitter.html"
+
+twitter_accounts <- read_html(url_twitter_accounts) %>% 
+  html_node("table") %>% 
+  html_table(trim = TRUE)
+
+twitter_accounts
+```
+
+
+## Extracting Game Statistics from NBA players with existing Twitter Accounts
+
+Having all NBA players including their twitter names loaded into a dataframe we are now ready to extract game statistics for each player. To do that let's write a function that gets a player's name and his twitter name as input and returns a tibble including all the game statistics of games he played in from [basketball-reference.com](https://basketball-reference.com). 
+
+```{r game-stats-player}
+get_game_stats <- function(player, twitter) {
+  tibble(
+    name = player, 
+    username = twitter)
+}
+
+```
+
+
+```{r game-stats-players, eval = TRUE}
+map2_dfr(twitter_accounts$Player, twitter_accounts$Twitter, get_game_stats)
+```
+
+
