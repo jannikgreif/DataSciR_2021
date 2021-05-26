@@ -26,9 +26,29 @@ With our final game statistics dataset we want to be able to link game statistic
 ```{r twitter-accounts}
 url_twitter_accounts <- "https://www.basketball-reference.com/friv/twitter.html"
 
-twitter_accounts <- read_html(url_twitter_accounts) %>% 
-  html_node("table") %>% 
-  html_table(trim = TRUE)
+twitter_tbl <- read_html(url_twitter_accounts) %>% 
+  html_element("table.stats_table") 
+
+player_td = twitter_tbl %>% 
+  html_elements("td[data-stat=\"player\"]") 
+
+twitter_td = twitter_tbl %>% 
+  html_elements("td[data-stat=\"twitter\"]")
+
+player_bref_ids = player_td %>% 
+  html_element("a") %>% 
+  html_attr("href") %>% 
+  map_chr(~ stringr::str_extract(.x, "[a-z]+[0-9]{2}"))
+
+player_names = player_td %>% html_text(trim = TRUE)
+
+twitter_names = twitter_td %>% html_text(trim = TRUE)
+
+twitter_accounts <- tibble(
+  bref_id = player_bref_ids,
+  player = player_names,
+  twitter = twitter_names
+)
 
 twitter_accounts
 ```
