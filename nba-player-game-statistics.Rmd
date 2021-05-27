@@ -1,5 +1,5 @@
 ---
-title: 'Dataset Generation: NBA Player Game Statistics'
+title: 'Dataset Generation: NBA Player Statistics'
 author: "Frank Dreyer, Jannik Greif, Kolja Günther"
 date: "23 5 2021"
 output: html_document
@@ -38,7 +38,7 @@ twitter_td = twitter_tbl %>%
 player_bref_ids = player_td %>% 
   html_element("a") %>% 
   html_attr("href") %>% 
-  map_chr(~ stringr::str_extract(.x, "[a-z]+[0-9]{2}"))
+  map_chr(~ str_extract(.x, "[a-z]/[a-z]+[0-9]{2}"))
 
 player_names = player_td %>% html_text(trim = TRUE)
 
@@ -50,26 +50,71 @@ twitter_accounts <- tibble(
   twitter = twitter_names
 )
 
+twitter_accounts %>% write_csv("data/player-twitter-accounts.csv")
+
 twitter_accounts
 ```
 
 
 ## Extracting Game Statistics from NBA players with existing Twitter Accounts
 
-Having all NBA players including their twitter names loaded into a dataframe we are now ready to extract game statistics for each player. To do that let's write a function that gets a player's name and his twitter name as input and returns a tibble including all the game statistics of games he played in from [basketball-reference.com](https://basketball-reference.com). 
+Having all NBA players including their twitter names loaded into a dataframe we are now ready to extract game statistics for each player. To do that let's write a function that gets a player's basketball-reference id as input and returns a tibble including all the game statistics of games he played in from [basketball-reference.com](https://basketball-reference.com). 
 
-```{r game-stats-player}
-get_game_stats <- function(player, twitter) {
-  tibble(
-    name = player, 
-    username = twitter)
+```{r playerseasonstats}
+get_player_season_stats <- function(bref_id) {
+  
+  url <- glue::glue("https://www.basketball-reference.com/players/{bref_id}.html")
+  html <- read_html(url)
+  
+  html_regular_season_tbl <- html %>% html_node("table#per_game")
+  html_playoffs_tbl <- html %>% html_node("table#playoffs_per_game")
+  
+  player_name <- html %>% 
+    html_element("h1[itemprop=\"name\"]") %>% 
+    html_text() %>% str_trim() 
+  
+  player_season_stats <- NULL
+  
+  # If player participated in regular season
+  if (!is.na(html_regular_season_tbl)) {
+    player_season_stats <- html_regular_season_tbl %>% 
+      html_table(trim = TRUE, convert = FALSE) %>% 
+      mutate(SeasonType = "Regular Season", .after = Season)
+  }
+  
+  # If player participated in playoffs
+  if (!is.na(html_playoffs_tbl)) {
+    player_season_stats <- bind_rows(
+      player_season_stats,
+      html_playoffs_tbl %>% 
+        html_table(trim = TRUE, convert = FALSE) %>% 
+        mutate(SeasonType = "Playoffs", .after = Season)
+    )
+  }
+  
+  # If player either played in regular season or playoffs
+  if (!is.null(player_season_stats)){
+    player_season_stats <- player_season_stats %>% 
+      filter(str_detect(Season, "[0-9]{4}-[0-9]{2}")) %>%   
+      mutate(bref_id = bref_id, .before = Season) %>% 
+      mutate(Player = player_name, .after = bref_id) %>% 
+      naniar::replace_with_na_all(
+        condition = ~ str_detect(.x, "Did Not Play")
+      ) %>% 
+      type.convert(as.is = TRUE)
+  }
+  
+  player_season_stats
+  
 }
 
-```
+player_season_stats <- twitter_accounts$bref_id %>% 
+  map_dfr(get_player_season_stats)
 
+player_season_stats %>% 
+  write_csv("data/player-season-stats.csv")
 
-```{r game-stats-players, eval = TRUE}
-map2_dfr(twitter_accounts$Player, twitter_accounts$Twitter, get_game_stats)
+player_season_stats
 ```
 
 
