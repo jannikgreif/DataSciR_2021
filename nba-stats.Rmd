@@ -1,5 +1,5 @@
 ---
-title: 'Dataset Generation: NBA Player Statistics'
+title: 'Dataset Generation: NBA Statistics'
 author: "Frank Dreyer, Jannik Greif, Kolja Günther"
 date: "23 5 2021"
 output: html_document
