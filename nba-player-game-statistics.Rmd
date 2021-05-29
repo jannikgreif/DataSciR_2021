@@ -7,7 +7,7 @@ output: html_document
 
 # Introduction
 
-To create the final dataset for our analysis one part is the extraction of game statistics from selected NBA players. In the following we will describe how to extract this kind of information from [basketball-reference.com](https://basketball-reference.com), a site which provides historized basketball statistics of basketball players and teams from varous US American and European leagues including the NBA.  
+To create the final dataset for our analysis one part is the extraction of game statistics from selected NBA players. In the following we will describe how to extract this kind of information from [basketball-reference.com](https://basketball-reference.com), a site which provides historized basketball statistics of basketball players and teams from various US American and European leagues including the NBA.  
 
 ## Setup
 
@@ -23,19 +23,19 @@ library(rvest)
 
 With our final game statistics dataset we want to be able to link game statistics of players to tweets they received on the same day before a game. For that reason we should only consider NBA players that have an existing Twitter account. Fortunately for us, [basketball-reference.com](https://basketball-reference.com) provides a list of [Twitter usernames of NBA players](https://www.basketball-reference.com/friv/twitter.html). Let's use this information and load it into a dataframe.
 
-```{r twitter-accounts}
-url_twitter_accounts <- "https://www.basketball-reference.com/friv/twitter.html"
+```{r player-metadata, eval = FALSE}
+url <- "https://www.basketball-reference.com/friv/twitter.html"
 
-twitter_tbl <- read_html(url_twitter_accounts) %>% 
+metadata_tbl <- read_html(url) %>% 
   html_element("table.stats_table") 
 
-player_td = twitter_tbl %>% 
+player_td = metadata_tbl %>% 
   html_elements("td[data-stat=\"player\"]") 
 
-twitter_td = twitter_tbl %>% 
+twitter_td = metadata_tbl %>% 
   html_elements("td[data-stat=\"twitter\"]")
 
-player_bref_ids = player_td %>% 
+BBRef_Player_IDs = player_td %>% 
   html_element("a") %>% 
   html_attr("href") %>% 
   map_chr(~ str_extract(.x, "[a-z]/[a-z]+[0-9]{2}"))
@@ -44,77 +44,364 @@ player_names = player_td %>% html_text(trim = TRUE)
 
 twitter_names = twitter_td %>% html_text(trim = TRUE)
 
-twitter_accounts <- tibble(
-  bref_id = player_bref_ids,
-  player = player_names,
-  twitter = twitter_names
+metadata <- tibble(
+  BBRef_Player_ID = BBRef_Player_IDs,
+  Player = player_names,
+  Twitter = twitter_names
 )
 
-twitter_accounts %>% write_csv("data/player-twitter-accounts.csv")
+metadata %>% write_csv("data/player-metadata.csv")
+```
 
-twitter_accounts
+```{r show-player-metadata}
+player_metadata <- read_csv("data/player-metadata.csv")
+
+player_metadata
 ```
 
 
-## Extracting Game Statistics from NBA players with existing Twitter Accounts
+
+## Extracting Player Metadata
 
 Having all NBA players including their twitter names loaded into a dataframe we are now ready to extract game statistics for each player. To do that let's write a function that gets a player's basketball-reference id as input and returns a tibble including all the game statistics of games he played in from [basketball-reference.com](https://basketball-reference.com). 
 
-```{r playerseasonstats}
-get_player_season_stats <- function(bref_id) {
+```{r player-season-stats, eval = FALSE}
+get_player_season_stats <- function(BBRef_Player_ID) {
   
-  url <- glue::glue("https://www.basketball-reference.com/players/{bref_id}.html")
+  url <- glue::glue("https://www.basketball-reference.com/players/{BBRef_Player_ID}.html")
   html <- read_html(url)
   
   html_regular_season_tbl <- html %>% html_node("table#per_game")
   html_playoffs_tbl <- html %>% html_node("table#playoffs_per_game")
   
-  player_name <- html %>% 
-    html_element("h1[itemprop=\"name\"]") %>% 
-    html_text() %>% str_trim() 
-  
-  player_season_stats <- NULL
+  season_stats <- NULL
+  regular_season_stats <- NULL
+  playoffs_season_stats <- NULL
   
   # If player participated in regular season
   if (!is.na(html_regular_season_tbl)) {
-    player_season_stats <- html_regular_season_tbl %>% 
+    regular_season_stats <- html_regular_season_tbl %>% 
       html_table(trim = TRUE, convert = FALSE) %>% 
       mutate(SeasonType = "Regular Season", .after = Season)
   }
   
   # If player participated in playoffs
   if (!is.na(html_playoffs_tbl)) {
-    player_season_stats <- bind_rows(
-      player_season_stats,
-      html_playoffs_tbl %>% 
-        html_table(trim = TRUE, convert = FALSE) %>% 
-        mutate(SeasonType = "Playoffs", .after = Season)
-    )
+    playoffs_season_stats <- html_playoffs_tbl %>% 
+      html_table(trim = TRUE, convert = FALSE) %>% 
+      mutate(SeasonType = "Playoffs")
   }
   
-  # If player either played in regular season or playoffs
-  if (!is.null(player_season_stats)){
-    player_season_stats <- player_season_stats %>% 
+  # If player participated in regular season or playoffs
+  if (! is.null(regular_season_stats) | ! is.null(playoffs_season_stats)){
+    season_stats <- regular_season_stats %>%
+      bind_rows(playoffs_season_stats) %>% 
       filter(str_detect(Season, "[0-9]{4}-[0-9]{2}")) %>%   
-      mutate(bref_id = bref_id, .before = Season) %>% 
-      mutate(Player = player_name, .after = bref_id) %>% 
+      mutate(BBRef_Player_ID = BBRef_Player_ID, .before = Season) %>% 
       naniar::replace_with_na_all(
         condition = ~ str_detect(.x, "Did Not Play")
       ) %>% 
       type.convert(as.is = TRUE)
   }
   
-  player_season_stats
+  season_stats
   
 }
 
-player_season_stats <- twitter_accounts$bref_id %>% 
-  map_dfr(get_player_season_stats)
+player_season_stats <- player_metadata$BBRef_Player_ID %>% 
+  map_dfr(get_player_season_stats) %>% 
+  mutate(Team = if_else(! is.na(Tm), Tm, Team)) %>% 
+  select(-Tm)
 
 player_season_stats %>% 
   write_csv("data/player-season-stats.csv")
+```
+
+```{r show-player-season-stats}
+player_season_stats <- read_csv("data/player-season-stats.csv")
 
 player_season_stats
+```
+
+
+
+## Extracting Player Game Statistics
+
+- According to [Wikipedia](https://en.wikipedia.org/wiki/Twitter) Twitter was found in 2006. Probably not many NBA players had a Twitter account during that time. In 2007 only 400,000 tweets were posted per quarter. However, the popularity of Twitter skyrocketed after its founding with over 50 million daily tweets in 2010. Let's therefore only consider players that actively played from 2010 onwards. 
+- Since player performance metrics like +/- become rather unreliable if a player only gets a small amount of playing time, we only consider players that on average get at least two quarters of playing time (i.e. 24 minutes). 
+
+```{r filter-relevant-players}
+
+min_MP <- 24
+min_Season <- "2010"
+
+relevant_players <- player_season_stats %>% 
+  filter(Season >= min_Season) %>% 
+  group_by(BBRef_Player_ID) %>% 
+  summarise(
+    AVG_MP = mean(MP, na.rm = TRUE)
+  ) %>% 
+  ungroup() %>% 
+  filter(AVG_MP >= min_MP) 
+
+relevant_players
+
+```
+
+
+
+```{r player-game-stats, eval = FALSE}
+
+not_played_keys <- c(
+  "Did Not Play", 
+  "Did Not Dress", 
+  "Inactive",
+  "Not With Team",
+  "Player Suspended"
+)
+
+
+get_player_game_stats <- function(BBRef_Player_ID) {
+  
+  print(BBRef_Player_ID)
+  
+  url <- glue::glue("https://www.basketball-reference.com/players/{BBRef_Player_ID}.html")
+  html <- read_html(url)
+  
+  player_seasons <- get_player_seasons(BBRef_Player_ID)
+  BBRef_Player_ID_rep <- rep(BBRef_Player_ID, times = player_seasons %>% length())
+  
+  basic_gamelogs <- map2_dfr(
+    BBRef_Player_ID_rep, player_seasons, ~ get_gamelogs(.x, .y, "basic")
+  ) 
+  
+  advanced_gamelogs <- map2_dfr(
+    BBRef_Player_ID_rep, player_seasons, ~ get_gamelogs(.x, .y, "advanced")
+  )
+  
+  gamelogs <- inner_join(basic_gamelogs, advanced_gamelogs) %>% 
+    type.convert()
+  
+  gamelogs
+  
+}
+
+
+get_player_seasons <- function(BBRef_Player_ID) {
+  
+  url <- glue::glue("https://www.basketball-reference.com/players/{BBRef_Player_ID}.html")
+  html <- read_html(url)
+  
+  seasons <- html %>% 
+    html_elements("th[data-stat=\"season\"]") %>% 
+    html_element("a") %>% 
+    html_text() %>% 
+    unique() %>% 
+    na.omit()
+  
+  seasons
+  
+}
+
+
+get_gamelogs <- function(BBRef_Player_ID, season, gamelog_type) {
+  
+  url <- glue::glue(
+    "https://www.basketball-reference.com/players/{id}/gamelog{type}/{s}",
+    id = BBRef_Player_ID,
+    type = if_else(gamelog_type == "basic", "", paste("", gamelog_type, sep = "-")),
+    s = season %>% 
+      str_remove("[0-9]{4}-") %>% 
+      paste("0101", sep = "") %>% 
+      lubridate::ymd() %>% 
+      lubridate::year()
+  )
+  html <- read_html(url)
+  
+  print(url)
+  
+  html_regular_season_gamelog_tbl <- html %>%  
+    html_node(glue::glue("table#pgl_{gamelog_type}"))
+  
+  # Playoffs game logs embedded in HTML comment
+  html_playoffs_gamelog_tbl <- html %>% 
+    html_nodes(xpath = '//comment()') %>% 
+    html_text() %>% 
+    paste(collapse = '') %>% 
+    read_html() %>% 
+    html_node(glue::glue("table#pgl_{gamelog_type}_playoffs"))
+  
+  regular_season_gamelogs <- NULL
+  playoffs_gamelogs <- NULL
+  gamelogs <- NULL
+  
+  # If player participated in regular season game
+  if (!is.na(html_regular_season_gamelog_tbl)) {
+    regular_season_gamelogs <- html_regular_season_gamelog_tbl %>% 
+      html_table(trim = TRUE, convert = FALSE, header = NA) 
+    
+    names(regular_season_gamelogs)[6] <- "HTm"
+    names(regular_season_gamelogs)[8] <- "WL"
+    
+    regular_season_gamelogs <- regular_season_gamelogs %>% 
+      mutate(SeasonType = "Regular Season", .before = Date)
+  }
+  
+  # If player participated in playoffs game 
+  if (!is.na(html_playoffs_gamelog_tbl)) {
+    playoffs_gamelogs <- html_playoffs_gamelog_tbl %>% 
+      html_table(trim = TRUE, convert = FALSE, header = NA)
+    
+    names(playoffs_gamelogs)[6] <- "HTm"
+    names(playoffs_gamelogs)[8] <- "WL"
+    
+    playoffs_gamelogs <- playoffs_gamelogs %>% 
+      mutate(SeasonType = "Playoffs", .before = Date)
+  }
+  
+  # If player participated in regular season or playoffs
+  if (!is_null(regular_season_gamelogs) | !is_null(playoffs_gamelogs)) {
+    gamelogs <- regular_season_gamelogs %>%
+      bind_rows(playoffs_gamelogs) %>% 
+      filter(Date != "Date") %>%      # Filter out header rows
+      mutate(Season = season, .before = SeasonType) %>% 
+      mutate(BBRef_Player_ID = BBRef_Player_ID, .before = Season) %>% 
+      mutate(HTm = if_else(HTm == "@", Opp, Tm)) %>% 
+      naniar::replace_with_na_all(~ .x %in% not_played_keys) %>% 
+      mutate(BBRef_Game_ID = map2_chr(
+        Date, HTm, 
+        ~ paste(lubridate::ymd(.x) %>% format("%Y%m%d"), .y, sep = "0")
+      ), .after = BBRef_Player_ID) %>% 
+      type.convert(as.is = TRUE)
+  }
+  
+  gamelogs
+  
+}
+
+
+get_game_time <- function(game_url) {
+  
+  read_html(game_url) %>% 
+    html_element("div.scorebox_meta") %>% 
+    html_text() %>% 
+    str_extract("[0-9]{1,2}:[0-9]{2} [A|P]M")
+    
+}
+
+
+subselection <- relevant_players %>% head()
+
+player_game_stats <- relevant_players$BBRef_Player_ID %>%
+  map_dfr(get_player_game_stats)
+
+player_game_stats %>% write_csv("data/player-game-stats.csv")
+```
+
+```{r show-player-game-stats}
+player_game_stats <- read_csv("data/player-game-stats.csv")
+
+player_game_stats
+```
+
+
+## Extracting Game Metadata
+
+```{r game-metadata, eval = FALSE}
+
+get_game_metadata <- function(season) {
+  
+  year <- season %>% str_remove("[0-9]{4}-") %>% 
+    paste("0101", sep = "") %>% 
+    lubridate::ymd() %>% 
+    format("%Y")
+  
+  url <- glue::glue("https://www.basketball-reference.com/leagues/NBA_{year}_games.html")
+  html <- read_html(url)
+  
+  game_metadata <- html %>% 
+    html_element("div.filter") %>%
+    html_element("a") %>% 
+    html_attr("href") %>% 
+    map_dfr(get_game_schedule)
+  
+  game_metadata
+  
+}
+
+
+get_game_schedule <- function(url) {
+  
+  url <- glue::glue("https://www.basketball-reference.com{url}")
+  html <- read_html(url)
+  
+  html_schedule_tbl <- html %>% html_node("table#schedule")
+  
+  game_dates <- html_schedule_tbl %>% 
+    html_element("tbody") %>% 
+    html_elements("th[data-stat=\"date_game\"]") %>% 
+    html_element("a") %>% 
+    html_text2() %>% 
+    lubridate::mdy()
+  
+  game_start_times <- html_schedule_tbl %>% 
+    html_element("tbody") %>% 
+    html_elements("td[data-stat=\"game_start_time\"]") %>% 
+    html_text2() %>% 
+    paste0("m")
+  
+  game_home_teams <- html_schedule_tbl %>% 
+    html_element("tbody") %>% 
+    html_elements("td[data-stat=\"home_team_name\"]") %>% 
+    html_attr("csk") %>% 
+    str_sub(start = 1, end = 3)
+  
+  game_home_pts <- html_schedule_tbl %>% 
+    html_element("tbody") %>% 
+    html_elements("td[data-stat=\"home_pts\"]") %>% 
+    html_text2()
+  
+  game_visit_teams <- html_schedule_tbl %>% 
+    html_element("tbody") %>% 
+    html_elements("td[data-stat=\"visitor_team_name\"]") %>% 
+    html_attr("csk") %>% 
+    str_sub(start = 1, end = 3)
+  
+  game_visit_pts <- html_schedule_tbl %>% 
+    html_element("tbody") %>% 
+    html_elements("td[data-stat=\"visitor_pts\"]") %>% 
+    html_text2()
+
+  schedule <- tibble(
+    Date = game_dates,
+    Start = game_start_times,
+    HomeTm = game_home_teams,
+    HomePTS = game_home_pts,
+    VisitTm = game_visit_teams,
+    VisitPTS = game_visit_pts
+  ) %>% 
+    mutate(DateTime = map2_chr(Date, Start, paste), .before = Date) %>% 
+    mutate(DateTime = lubridate::ymd_hm(DateTime)) %>% 
+    mutate(BBRef_Game_ID = map2_chr(
+      Date, HomeTm, ~ format(.x, "%Y%m%d") %>% paste(.y, sep = "0")
+    ), .before = DateTime)
+  
+}
+
+game_metadata <- player_season_stats %>% 
+  filter(Season >= min_Season) %>% 
+  pull(Season) %>% 
+  unique() %>% 
+  map_dfr(get_game_metadata)
+
+game_metadata %>% write_csv("data/game-metadata.csv")
+
+```
+
+```{r show-game-metadata}
+game_metadata <- read_csv("data/game-metadata.csv")
+
+game_metadata
 ```
 
 
