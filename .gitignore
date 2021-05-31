@@ -43,5 +43,9 @@ vignettes/*.pdf
 # R package: bookdown caching files
 /*_files/
 
+# Rmd Output files
+*.html
+*.pdf
+
 # Others
 *.DS_Store
