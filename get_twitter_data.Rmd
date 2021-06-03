@@ -116,7 +116,7 @@ bind_tweet_jsons <- function(player, data_path = paste(mainDir, "tweets/json/",s
     )
   
   if(length(files)<1){
-    stop("There are no files matching the pattern `data_` in the specified directory.")
+    stop(paste("There are no files matching the pattern ‘",player, "_‘", " in the specified directory.", sep = ""))
   }
   
   files <- paste(data_path, files, sep = "")
@@ -132,7 +132,7 @@ bind_tweet_jsons <- function(player, data_path = paste(mainDir, "tweets/json/",s
     json.df.all <- dplyr::bind_rows(json.df.all, json.df)
     utils::setTxtProgressBar(pb, i)
   }
-  #cat("\n")
+  cat("\n")
   return(json.df.all)
 }
 ```
