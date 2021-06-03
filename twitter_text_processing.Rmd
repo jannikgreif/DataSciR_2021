@@ -1,0 +1,62 @@
+---
+title: "twitter_text_processing"
+output: html_document
+---
+```{r packages, message = FALSE}
+library(rvest)
+library(stringr)
+library(rlist)
+```
+
+```{r load data}
+tweets_list <- list.load("~/Documents/GitHub/DataSciR_2021/data/tweets/tweets_list.RData")
+```
+
+```{r}
+# noch alles ändern
+
+# test to transform twitter text emojis to unicode
+test <- search_tweets("emoji", n = 100)
+tweets2 <-tibble(text = iconv(test$text, "UTF-8", "ASCII", "Unicode"))
+
+test[[1]]$text <- test[[1]]$text %>% iconv("UTF-8", "ASCII", "Unicode")
+
+
+format_emoji <- function(text){
+  if(text %>% str_detect("<")){
+    text <- text %>%
+      str_replace_all("<"," <")
+  }
+  return(text)
+}
+
+abc <- map(test[[1]]$text, format_emoji) # geht nicht
+
+bind_rows(abc)
+```
+
+```{r}
+# get the emoji unicode and sentiment score
+# http://kt.ijs.si/data/Emoji_sentiment_ranking/index.html
+content <- read_html("http://kt.ijs.si/data/Emoji_sentiment_ranking/index.html")
+
+
+table <- content %>%
+  html_table() 
+
+emoji_sentiment_score <- table[[1]] %>%
+  select(Char, `Sentiment score[-1...+1]`) %>%
+  mutate(Char = iconv(Char, "UTF-8", "ASCII", "Unicode")) 
+
+# get the emotions for emojis in unicode
+
+emoji_emotion <- fromJSON(file = "~/Documents/GitHub/DataSciR_2021/data/emoji_5sentiment_dictionary.json") %>%
+  bind_rows(.id = "id") %>%
+  mutate(id = iconv(id, "UTF-8", "ASCII", "Unicode"))
+
+# final emoji sentiment lexicon
+emoji <- emoji_sentiment_score %>%
+  full_join(emoji_emotion, by = c("Char" = "id"))
+
+```
+

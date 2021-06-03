@@ -3,24 +3,32 @@ title: "get_twitter_data"
 output: pdf_document
 ---
 
-```{r}
+```{r packages, message = FALSE}
 library(readr)
-library(rtweet)
-#library(anytime)
+library(anytime)
 library(lubridate)
-library(stringr)
 library(academictwitteR)
 library(tidyverse)
-library(rvest)
-library(rjson)
-
-player_metadata <- read_csv("~/Documents/GitHub/DataSciR_2021/data/player-metadata.csv")
-player_game_stats <- read_csv("~/Documents/GitHub/DataSciR_2021/data/player-game-stats.csv")
-game_metadata <- read_csv("~/Documents/GitHub/DataSciR_2021/data/game-metadata.csv")
-player_season_stats <- read_csv("~/Documents/GitHub/DataSciR_2021/data/player-season-stats.csv")
+library(jsonlite)
+library(rlist)
 ```
 
-```{r} 
+```{r data and specify directory}
+# set main directory to save data to
+mainDir <- "~/Documents/GitHub/DataSciR_2021/data/"
+
+player_metadata <- read_csv(paste(mainDir,"player-metadata.csv", sep =""))
+player_game_stats <- read_csv(paste(mainDir,"player-game-stats.csv", sep =""))
+game_metadata <- read_csv(paste(mainDir,"game-metadata.csv", sep =""))
+player_season_stats <- read_csv(paste(mainDir,"player-season-stats.csv", sep =""))
+
+# create directories if they don't exist
+if (!dir.exists(paste(mainDir, "tweets/", sep =""))) {dir.create(paste(mainDir, "tweets/", sep =""))}
+if (!dir.exists(paste(mainDir, "tweets/json/", sep =""))) {dir.create(paste(mainDir, "tweets/json/", sep =""))}
+```
+
+
+```{r select relevant players} 
 # players who played for the same team during the seasons 2016/17/18/19
 player_season <- player_season_stats %>%
   filter(Season == "2016-17" |Season == "2017-18" | Season == "2018-19") %>%
@@ -61,7 +69,7 @@ final_player_list <- player_season_stats %>%
   left_join(player_metadata)
 ```
 
-```{r}
+```{r combine player and game datetimes}
 # select the relevant game ids, datetimes and player names
 player_game <- player_game_stats %>%
   filter(BBRef_Player_ID %in% final_player_list$BBRef_Player_ID) %>%
@@ -75,77 +83,66 @@ game_time <- game_metadata %>%
   inner_join(player_game) 
 ```
 
-```{r}
+```{r save_tweets function}
 # function to get the tweets for every unique game,player combination
 save_tweets <- function(player, time){
-  print(player)
-  print(time %>% iso8601() %>% paste("Z", sep = ""))
-  tweets <- get_all_tweets(  # noch data path hinzufügen
+  tweets <- get_all_tweets( 
     player,
-    (time- hours(48)) %>% iso8601() %>% paste("Z", sep = ""), 
-    (time - minutes(45)) %>% iso8601() %>% paste("Z", sep = ""),
+    (time - hours(48)) %>% iso8601() %>% paste("Z", sep = ""), # starttime
+    (time - minutes(45)) %>% iso8601() %>% paste("Z", sep = ""), # endtime
+    lang = "en",
     bearer_token = bearer_token)
   
   tweets <- tweets %>%
-    mutate(DateTime = time, Twitter = player)
-    
-  return(tweets)
+    mutate(Player = player, DateTime = time)
+  
+  write_json(tweets, path = paste(mainDir, "tweets/json/", player,"_", time %>% iso8601(), ".json",sep=""))
 }
+```
 
-#a <- game_time %>%
-#  head(3)
-# actual call to save all tweets // replace a with game_time or final subset
-all_tweets <- map2(a$Twitter, a$DateTime, save_tweets)
-# save() hinzufügen
-
-
-
-
-# test to transform twitter text emojis to unicode
-test <- search_tweets("emoji", n = 100)
-tweets2 <-tibble(text = iconv(test$text, "UTF-8", "ASCII", "Unicode"))
-
-test[[1]]$text <- test[[1]]$text %>% iconv("UTF-8", "ASCII", "Unicode")
-
-
-format_emoji <- function(text){
-  if(text %>% str_detect("<")){
-    text <- text %>%
-      str_replace_all("<"," <")
+```{r bind_tweet_jsons function}
+# change the bind_tweet_json function from academictwitteR to use a different pattern
+bind_tweet_jsons <- function(player, data_path = paste(mainDir, "tweets/json/",sep="")) {
+  if(substr(data_path, nchar(data_path), nchar(data_path)) != "/"){
+    data_path <- paste0(data_path,"/")
   }
-  return(text)
+  # parse and bind
+  files <-
+    list.files(
+      path = file.path(data_path),
+      pattern = paste("^",player,sep=""),
+      recursive = T,
+      include.dirs = T
+    )
+  
+  if(length(files)<1){
+    stop("There are no files matching the pattern `data_` in the specified directory.")
+  }
+  
+  files <- paste(data_path, files, sep = "")
+  
+  pb = utils::txtProgressBar(min = 0,
+                             max = length(files),
+                             initial = 0)
+  
+  json.df.all <- data.frame()
+  for (i in seq_along(files)) {
+    filename = files[[i]]
+    json.df <- jsonlite::read_json(filename, simplifyVector = TRUE)
+    json.df.all <- dplyr::bind_rows(json.df.all, json.df)
+    utils::setTxtProgressBar(pb, i)
+  }
+  #cat("\n")
+  return(json.df.all)
 }
-
-abc <- map(test[[1]]$text, format_emoji) # geht nicht
-
-bind_rows(abc)
 ```
 
-```{r}
-# get the emoji unicode and sentiment score
-# http://kt.ijs.si/data/Emoji_sentiment_ranking/index.html
-content <- read_html("http://kt.ijs.si/data/Emoji_sentiment_ranking/index.html")
+```{r save tweets}
+# actual call to save all tweets 
+map2(game_time$Twitter, game_time$DateTime, save_tweets) # saves all tweets in json files in /data/tweets/json/
 
-
-table <- content %>%
-  html_table() 
-
-emoji_sentiment_score <- table[[1]] %>%
-  select(Char, `Sentiment score[-1...+1]`) %>%
-  mutate(Char = iconv(Char, "UTF-8", "ASCII", "Unicode")) 
-
-# get the emotions for emojis in unicode
-
-emoji_emotion <- fromJSON(file = "~/Documents/GitHub/DataSciR_2021/data/emoji_5sentiment_dictionary.json") %>%
-  bind_rows(.id = "id") %>%
-  mutate(id = iconv(id, "UTF-8", "ASCII", "Unicode"))
-
-# final emoji sentiment lexicon
-emoji <- emoji_sentiment_score %>%
-  full_join(emoji_emotion, by = c("Char" = "id"))
-
-```
-
-```{r}
-
+# named list to save tweets by player
+map(game_time$Twitter, bind_tweet_jsons) %>%
+  set_names(game_time$Twitter %>% unique()) %>%
+  list.save(file = paste(mainDir, "/tweets/tweets_list.RData",sep=""))
 ```
