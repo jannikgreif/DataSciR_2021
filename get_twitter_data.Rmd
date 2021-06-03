@@ -6,7 +6,8 @@ output: pdf_document
 ```{r}
 library(readr)
 library(rtweet)
-library(anytime)
+#library(anytime)
+library(lubridate)
 library(stringr)
 library(academictwitteR)
 library(tidyverse)
@@ -20,109 +21,104 @@ player_season_stats <- read_csv("~/Documents/GitHub/DataSciR_2021/data/player-se
 ```
 
 ```{r} 
-
-
-# Block überarbeiten mit letztem Block
-
-
-
-player_season_stats %>%
+# players who played for the same team during the seasons 2016/17/18/19
+player_season <- player_season_stats %>%
   filter(Season == "2016-17" |Season == "2017-18" | Season == "2018-19") %>%
-  group_by(BBRef_Player_ID, Team) 
+  filter(SeasonType == "Regular Season") %>%
+  group_by(BBRef_Player_ID) %>%
+  filter(n() == 3) %>%
+  summarize(m = length(unique(Team))) %>%
+  arrange(m) %>%
+  filter(m == 1) %>%
+  select(BBRef_Player_ID) %>%
+  inner_join(player_game_stats)
 
-# see how often players have an performance review over the season 2017/18 and 2018/19
-player_game_stats %>% 
-  filter(Season == "2017-18" | Season == "2018-19") %>% 
-  group_by(BBRef_Player_ID) %>% summarize(count = n()) %>%
-  summary()
+# sd of players using BPM as metric  
+player_sd <- player_season %>%
+  group_by(BBRef_Player_ID) %>%
+  summarize(sd_bpm = sd(BPM,na.rm = TRUE)) %>%
+  left_join(player_metadata)
 
-# select unique players that are present in the dataset (with or more than 150 entries)
-player <- player_game_stats %>% 
-  filter(Season == "2017-18" | Season == "2018-19") %>%
-  group_by(BBRef_Player_ID) %>% summarize(count = n()) %>% # remove nas
-  filter(count >= 150) %>%
-  ungroup() %>%
-  select(BBRef_Player_ID) %>% unique() 
+# combine with twitter profile data 
+player_twitter_sd <- lookup_users(player_sd %>% select(Twitter) %>% pull()) %>%
+  select(followers_count, statuses_count, favourites_count, screen_name) %>%
+  inner_join(player_sd, by = c("screen_name" = "Twitter"))
 
-# get all the twitter names from these players
-twittername <- player %>%       
-  left_join(player_metadata) %>%
-  pull(Twitter)
-
-# get the corresponding follower count for each twitter account
-follower_count <- lookup_users(twittername) %>%
-  #filter(followers_count > )  ? 
-  select(screen_name, followers_count) 
-
-# subset 30 players to use in the analysis
-set.seed(123)
-final_player <- follower_count %>%
-  slice_sample(n = 30) %>%
-  left_join(player_metadata, by = c("screen_name" = "Twitter")) %>%
-  select(BBRef_Player_ID, Player)
-  
-
-#test <- lookup_users("StephenCurry30")
-test <- lookup_users(twittername) %>%
-  select(followers_count, statuses_count, favourites_count, screen_name)
+# list of players to choose from
+final_player_list <- player_season_stats %>%
+  filter(Season == "2016-17" |Season == "2017-18" | Season == "2018-19") %>%
+  filter(SeasonType == "Regular Season") %>%
+  group_by(BBRef_Player_ID) %>%
+  filter(n() == 3) %>%
+  summarize(m = length(unique(Team))) %>%
+  filter(m == 1) %>%
+  inner_join(player_season_stats) %>%
+  filter(Season == "2016-17" |Season == "2017-18" | Season == "2018-19") %>%
+  filter(SeasonType == "Regular Season") %>%
+  group_by(BBRef_Player_ID) %>%
+  summarize(game_count = sum(G)) %>%
+  inner_join(player_twitter_sd) %>%
+  left_join(player_metadata)
 ```
 
 ```{r}
 # select the relevant game ids, datetimes and player names
 player_game <- player_game_stats %>%
-  filter(BBRef_Player_ID %in% final_player$BBRef_Player_ID) %>%
+  filter(BBRef_Player_ID %in% final_player_list$BBRef_Player_ID) %>%
   filter(Season == "2017-18" | Season == "2018-19") %>%
   select(BBRef_Player_ID, BBRef_Game_ID) %>%
-  left_join(final_player)
+  left_join(final_player_list %>% select(BBRef_Player_ID, Twitter)) 
 
 #final dataset to use in the twitter api
 game_time <- game_metadata %>%
   select(BBRef_Game_ID, DateTime) %>%
-  right_join(player_game) 
+  inner_join(player_game) 
 ```
 
 ```{r}
-get_tweets <- function(player){
-  datalist = list()
+# function to get the tweets for every unique game,player combination
+save_tweets <- function(player, time){
+  print(player)
+  print(time %>% iso8601() %>% paste("Z", sep = ""))
+  tweets <- get_all_tweets(  # noch data path hinzufügen
+    player,
+    (time- hours(48)) %>% iso8601() %>% paste("Z", sep = ""), 
+    (time - minutes(45)) %>% iso8601() %>% paste("Z", sep = ""),
+    bearer_token = bearer_token)
   
-  time <- game_time %>%
-    filter(Player == player) %>%
-    pull(DateTime)
-  
-  for(i in 1:nrow(time)){  
-    tweets <- get_all_tweets(
-      player,
-      (times[i] - hours(48)) %>% iso8601(), 
-      (times[i] - minutes(45)) %>% iso8601(),
-      bearer_token = bearer_token)
-  
-    tweets <- tweets %>%
-      mutate(game_time = times[i], game_number = i,game_id = BBRef_Game_ID, player_name = player )
-
-    datalist[[i]] <- tweets
-  }
-  return(bind_rows(datalist))
+  tweets <- tweets %>%
+    mutate(DateTime = time, Twitter = player)
+    
+  return(tweets)
 }
 
-get_tweets_all_player <- function(x){ #Input: game_time
-  twittername <- x %>% pull(Player)
-  map_dfr(twittername,get_tweets)
-}
+#a <- game_time %>%
+#  head(3)
+# actual call to save all tweets // replace a with game_time or final subset
+all_tweets <- map2(a$Twitter, a$DateTime, save_tweets)
+# save() hinzufügen
 
-#data <- get_tweets_all_player(game_time)
-#save(data, file = "all_tweets.RData")
+
 
 
 # test to transform twitter text emojis to unicode
 test <- search_tweets("emoji", n = 100)
 tweets2 <-tibble(text = iconv(test$text, "UTF-8", "ASCII", "Unicode"))
 
-for(i in 1:nrow(tweets2)){
-  if(str_detect(tweets2$text[i],"<")){
-    tweets2$text[i] <- tweets2$text[i] %>% 
-    str_replace_all("<"," <") 
+test[[1]]$text <- test[[1]]$text %>% iconv("UTF-8", "ASCII", "Unicode")
+
+
+format_emoji <- function(text){
+  if(text %>% str_detect("<")){
+    text <- text %>%
+      str_replace_all("<"," <")
   }
+  return(text)
 }
+
+abc <- map(test[[1]]$text, format_emoji) # geht nicht
+
+bind_rows(abc)
 ```
 
 ```{r}
@@ -151,43 +147,5 @@ emoji <- emoji_sentiment_score %>%
 ```
 
 ```{r}
-# players who played for the same team during the seasons 2016/17/18/19
-player_season <- player_season_stats %>%
-  filter(Season == "2016-17" |Season == "2017-18" | Season == "2018-19") %>%
-  filter(SeasonType == "Regular Season") %>%
-  group_by(BBRef_Player_ID) %>%
-  filter(n() == 3) %>%
-  summarize(m = length(unique(Team))) %>%
-  arrange(m) %>%
-  filter(m == 1) %>%
-  select(BBRef_Player_ID) %>%
-  inner_join(player_game_stats)
 
-# sd of players using BPM as metric  
-player_sd <- player_season %>%
-  group_by(BBRef_Player_ID) %>%
-  summarize(sd_bpm = sd(BPM,na.rm = TRUE)) %>%
-  arrange(desc(sd_bpm)) %>%
-  left_join(player_metadata)
-
-# combine with twitter profile data 
-player_twitter_sd <- lookup_users(player_sd %>% select(Twitter) %>% pull()) %>%
-  select(followers_count, statuses_count, favourites_count, screen_name) %>%
-  inner_join(player_sd, by = c("screen_name" = "Twitter"))
-
-# list of players to choose from
-final_player_list <- player_season_stats %>%
-  filter(Season == "2016-17" |Season == "2017-18" | Season == "2018-19") %>%
-  filter(SeasonType == "Regular Season") %>%
-  group_by(BBRef_Player_ID) %>%
-  filter(n() == 3) %>%
-  summarize(m = length(unique(Team))) %>%
-  arrange(m) %>%
-  filter(m == 1) %>%
-  inner_join(player_season_stats) %>%
-  filter(Season == "2016-17" |Season == "2017-18" | Season == "2018-19") %>%
-  filter(SeasonType == "Regular Season") %>%
-  group_by(BBRef_Player_ID) %>%
-  summarize(game_count = sum(G)) %>%
-  inner_join(player_twitter_sd)
 ```
