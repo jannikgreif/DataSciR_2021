@@ -12,7 +12,11 @@ library(tidyverse)
 library(jsonlite)
 library(rlist)
 ```
+##crawling the Twitter API for relevant tweets
 
+This part contains the whole pipeline of extracting the relevant tweets for our analysis. But before we can exploit the API, some pre-work has to be done which will be described in this section.
+
+In the following, the main directory for our created data gets set up and the four datasets we created from the NBAStats source get loaded.
 ```{r data and specify directory}
 # set main directory to save data to
 mainDir <- "~/Documents/GitHub/DataSciR_2021/data/"
@@ -27,6 +31,15 @@ if (!dir.exists(paste(mainDir, "tweets/", sep =""))) {dir.create(paste(mainDir, 
 if (!dir.exists(paste(mainDir, "tweets/json/", sep =""))) {dir.create(paste(mainDir, "tweets/json/", sep =""))}
 ```
 
+Before we can start with the extraction of relevant tweets for our NBA players, we have to narrow down the number of players to be considered by our pipeline. The data sets above are created over 227 players. As the process of collecting tweets for such a number of individuals would be a huge overload, we decided to pick those top players, which are most relevant for us, following some criteria we set up before.
+First of all we pick those players, which continuously played in the regular seasons 2016/17 - 2018/19. We didn't consider the playoffs here, as many players didn't get into the playoffs with their teams but still played a full regular season and therefore are provide enough interesting play-data for our analysis. Furthermore, we only wanted those players in our data set, which stayed at their respective team for the whole time of observation [line 42-45]. The idea behind this was to eliminate team changes as possible factors that influence the player's performance aside those we want to observe. The resulting data was stored in the "player_season" table.
+
+As second perimeter we inspected the variable "Box Plus/Minus" (BPM) in the player_game_stats data set, which is a score-based performance indicator that "estimates a basketball player's contribution to the team when that player is on the court. [...] BPM uses a player's box score information, position, and the team's overall performance to estimate the player's contribution in points above league average per 100 possessions played."[insert reference: https://www.basketball-reference.com/about/bpm2.html]
+With this estimate, we wanted to extract those players, whose performance is relatively unstable in comparison to their colleagues by computing the standard deviation of performance for each player and storing them from the highest deviation in descending order in the "player_sd" table.
+
+Finally we merged the "player-sd" values of the players with their respective twitter-account data, including the count of followers, the count of posted statuses, the count of accounts indicated as favourites and the player's screen name.
+
+Now the last step was to create a final set of players we wanted to consider in our analysis by merging the two data sets created into one and picking the top intersecting players.
 
 ```{r select relevant players} 
 # players who played for the same team during the seasons 2016/17/18/19
@@ -69,6 +82,8 @@ final_player_list <- player_season_stats %>%
   left_join(player_metadata)
 ```
 
+To successfully extract the tweets relevant to a player in the following step, we first need to merge the player data with the dates and times on which they have played matches. These times also get extracted from the "player_game_stats" data set and then filtered by the seasons we want to observe (note that we don't consider the season 2016/17 as this was only used to grant that the players also stayed at their respective team the time before our observation) as well as the selection of players we want to consider.
+Then a final data set "game_time" was created, including the recently merged data as well as the variables of the "game_metadata" data set.
 ```{r combine player and game datetimes}
 # select the relevant game ids, datetimes and player names
 player_game <- player_game_stats %>%
@@ -83,6 +98,10 @@ game_time <- game_metadata %>%
   inner_join(player_game) 
 ```
 
+The following function was created to extract relevant tweets related to a player. We decided to not only take into account all tweets that lie in the time before a match but limit the period to consider by the following criteria:
+- the extraction should start 48 hours before a player's game
+- the extraction should end 45 minutes before a player's game
+especially the second limitation was selected as NBA players are not allowed to look into their mobile phones 15 minutes before a match and it is very unlikely that they even have a glimpse into it 45 minutes before, as they're already in the locker rooms, preparing for the game. The first limitation was selected by the fact that each NBA team has a match every two days, so it stood to reason to only inspect tweets in the time after the last match.
 ```{r save_tweets function}
 # function to get the tweets for every unique game,player combination
 save_tweets <- function(player, time){
@@ -99,6 +118,7 @@ save_tweets <- function(player, time){
   write_json(tweets, path = paste(mainDir, "tweets/json/", player,"_", time %>% iso8601(), ".json",sep=""))
 }
 ```
+
 
 ```{r bind_tweet_jsons function}
 # change the bind_tweet_json function from academictwitteR to use a different pattern
@@ -137,6 +157,7 @@ bind_tweet_jsons <- function(player, data_path = paste(mainDir, "tweets/json/",s
 }
 ```
 
+In our final step we make the actual search for relevant tweets, utilizing the functions and calls defined beforehand. The extracted tweets then get stored into a named list to have a collection of tweets for each player we've selected as relevant.
 ```{r save tweets}
 # actual call to save all tweets 
 map2(game_time$Twitter, game_time$DateTime, save_tweets) # saves all tweets in json files in /data/tweets/json/
