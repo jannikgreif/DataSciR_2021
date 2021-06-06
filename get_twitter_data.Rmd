@@ -106,7 +106,8 @@ especially the second limitation was selected as NBA players are not allowed to 
 # function to get the tweets for every unique game,player combination
 save_tweets <- function(player, time, game_id, starttime, endtime){
   tweets <- get_all_tweets( 
-    query = player,               #vll is_retweet = FALSE reinnehmen? -> keine retweets auslesen
+    query = player,              
+    is_retweet = FALSE,
     start_tweets = starttime,
     end_tweets = endtime,
     lang = "en",

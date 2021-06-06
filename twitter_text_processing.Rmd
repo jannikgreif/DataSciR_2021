@@ -10,6 +10,9 @@ library(tidyverse)
 library(jsonlite)
 library(tokenizers)
 library(dplyr)
+library(tidytext)
+library(syuzhet)
+library(sentimentr)
 ```
 
 ```{r load_data}
@@ -21,19 +24,23 @@ tweets <- list.load(file = paste(mainDir, "/tweets/tweets_list.RData",sep=""))
 # transform twitter text emojis to unicode
 tweets_text <- tweets %>%
   map_dfr(~ bind_rows(.x)) %>%
-  select(text, Player, DateTime, GameId)
+  select(text, Player, DateTime, GameId, public_metrics) %>%
+  mutate(retweet_count = tweets_text$public_metrics$retweet_count) %>%
+  mutate(reply_count = tweets_text$public_metrics$reply_count) %>%
+  mutate(like_count = tweets_text$public_metrics$like_count) %>%
+  mutate(quote_count = tweets_text$public_metrics$quote_count) %>%
+  select(text, Player, DateTime, GameId, retweet_count, reply_count, like_count, quote_count)
 
 tweets_text <- map(tweets_text$text, format_) %>%
   list.rbind() %>%
   as.data.frame() %>%
-  set_names("unicode_text") %>%
+  set_names("text_") %>%
   cbind(tweets_text)
 
 format_ <- function(text){
-  text_unicode <- iconv(text, "UTF-8", "ASCII", "Unicode")
-    text_unicode <- text_unicode %>%
-      str_replace_all("<"," <")
-  return(text_unicode)
+    text <- text %>%
+      str_replace_all("\\"," \\")
+  return(text)
 } 
 ```
 
@@ -46,24 +53,39 @@ table <- content %>%
   html_table() 
 
 emoji_sentiment_score <- table[[1]] %>%
-  select(Char, `Sentiment score[-1...+1]`) %>%
-  mutate(Char = iconv(Char, "UTF-8", "ASCII", "Unicode")) 
+  select(Char, `Sentiment score[-1...+1]`) 
 
 # get the emotions for emojis in unicode
-emoji_emotion <- fromJSON(paste(mainDir,"emoji_5sentiment_dictionary.json",sep ="")) %>%
-  bind_rows(.id = "id") %>%
-  mutate(id = iconv(id, "UTF-8", "ASCII", "Unicode"))
+#emoji_emotion <- fromJSON(paste(mainDir,"emoji_5sentiment_dictionary.json",sep ="")) %>%
+#  bind_rows(.id = "id") %>%
+#  mutate(id = iconv(id, "UTF-8", "ascii", "Unicode"))
 
 # final emoji sentiment lexicon
 emoji <- emoji_sentiment_score %>%
   full_join(emoji_emotion, by = c("Char" = "id"))
 ```
 
-```{r tokenization}
-# funktion die für jeden spieler die wörter tokenized und game_id ,(zeit), name mitspeichert
+```{r sentiment}
+emoji_dict <- emoji_sentiment_score[1:2] %>%
+  rename(word = Char, value = `Sentiment score[-1...+1]`)
+emoji_dict
 
+
+a <- tweets_text$text %>%
+  get_sentiment(method = "custom", lexicon = emoji_dict) 
+
+tweets_text$text %>%
+    get_sentences() %>%
+    get_sentiment(method="syuzhet")
+  
+sentiments
+
+fun_a <- function(text){
+  sentiments <- text %>%
+    get_sentences() %>%
+    get_sentiment(method="syuzhet")
 }
-
-
+tweets_text$text %>%
+  replace_emoticon() 
 ```
 
