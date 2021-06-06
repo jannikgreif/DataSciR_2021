@@ -105,7 +105,7 @@ especially the second limitation was selected as NBA players are not allowed to 
 ```{r save_tweets_function}
 # function to get the tweets for every unique game,player combination
 save_tweets <- function(player, time, game_id, starttime, endtime){
-  tweets <- get_all_tweets( 
+    tweets <- get_all_tweets( 
     query = player,              
     is_retweet = FALSE,
     start_tweets = starttime,
@@ -113,11 +113,13 @@ save_tweets <- function(player, time, game_id, starttime, endtime){
     lang = "en",
     bearer_token = bearer_token)
   
-  tweets <- tweets %>%
+tweets <- tweets %>%
     mutate(Player = player, DateTime = time, GameId = game_id)
+write_json(tweets, path = paste(mainDir, "tweets/json/", player,"_", time %>% iso8601(), ".json",sep=""))
   
   
-  write_json(tweets, path = paste(mainDir, "tweets/json/", player,"_", time %>% iso8601(), ".json",sep=""))
+  
+  
 }
 ```
 
@@ -161,6 +163,25 @@ bind_tweet_jsons <- function(player, data_path = paste(mainDir, "tweets/json",se
 
 In our final step we make the actual search for relevant tweets, utilizing the functions and calls defined beforehand. The extracted tweets then get stored into a named list to have a collection of tweets for each player we've selected as relevant.
 ```{r save_tweets}
+#game_time <- game_time %>% tail( -126)
+
+# a/antetgi01 201711180DAL Giannis_An34 2017-11-18 21:00:00
+# 	a/antetgi01 201712220MIL Giannis_An34 2017-12-22 20:00:00
+#a/antetgi01 201801200PHI Giannis_An34 2018-01-20 19:30:00
+# a/antetgi01 201812050MIL Giannis_An34 2018-12-05 20:00:00
+#a/antetgi01 201901040MIL Giannis_An34 2019-01-04 20:30:00
+#	a/antetgi01 201901210MIL Giannis_An34 2019-01-21 14:00:00
+#	 a/antetgi01 201901250MIL Giannis_An34 2019-01-25 20:30:00
+#	a/antetgi01 201902020WAS Giannis_An34 2019-02-02 19:00:00
+#a/antetgi01 201903170MIL Giannis_An34 2019-03-17 15:30:00
+#	a/antetgi01 201903260MIL Giannis_An34 2019-03-26 20:00:00
+# a/antetgi01 201905210TOR Giannis_An34 2019-05-21 20:30:00
+#a/antetgi01 201905230MIL Giannis_An34 2019-05-23 20:30:00
+#a/antetgi01 201905250TOR Giannis_An34 2019-05-25 20:30:00
+#b/bookede01 201812190BOS DevinBook 2018-12-19 19:30:00
+#b/bookede01 201902060UTA DevinBook 2019-02-06 21:00:00
+#b/brownja02 201805250CLE FCHWPO 2018-05-25 20:30:00
+
 # actual call to save all tweets 
 pmap(list(
   player = game_time$Twitter,
