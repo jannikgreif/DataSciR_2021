@@ -10,8 +10,12 @@ library(lubridate)
 library(academictwitteR)
 library(tidyverse)
 library(jsonlite)
-library(rlist)
 library(rtweet)
+library(rlist)
+library(purrr)
+library(naniar)
+library(rlist)
+library(plyr)
 ```
 ##crawling the Twitter API for relevant tweets
 
@@ -101,10 +105,11 @@ game_time <- player_game %>%
 The following function was created to extract relevant tweets related to a player. We decided to not only take into account all tweets that lie in the time before a match but limit the period to consider by the following criteria:
 - the extraction should start 48 hours before a player's game
 - the extraction should end 45 minutes before a player's game
-especially the second limitation was selected as NBA players are not allowed to look into their mobile phones 15 minutes before a match and it is very unlikely that they even have a glimpse into it 45 minutes before, as they're already in the locker rooms, preparing for the game. The first limitation was selected by the fact that each NBA team has a match every two days, so it stood to reason to only inspect tweets in the time after the last match.
+especially the second limitation was selected as NBA players are not allowed to look into their mobile phones 15 minutes before a match and it is very unlikely that they even have a glimpse into it 45 minutes before, as they're already in the locker rooms, preparing for the game. The first limitation was selected by the fact that each NBA team has a match every two days, so it stood to reason to only inspect tweets in the time after the last match. We only include tweets writen in english and tweets that aren't retweets. Retweets don't have any additional information - the retweet count is accessable on the original tweet. Each query consists of the unique player and GameId combination and is saved in small json files to counteract data loss.
 ```{r save_tweets_function}
 # function to get the tweets for every unique game,player combination
 save_tweets <- function(player, time, game_id, starttime, endtime){
+  try({
     tweets <- get_all_tweets( 
     query = player,              
     is_retweet = FALSE,
@@ -113,21 +118,19 @@ save_tweets <- function(player, time, game_id, starttime, endtime){
     lang = "en",
     bearer_token = bearer_token)
   
-tweets <- tweets %>%
-    mutate(Player = player, DateTime = time, GameId = game_id)
-write_json(tweets, path = paste(mainDir, "tweets/json/", player,"_", time %>% iso8601(), ".json",sep=""))
-  
-  
-  
-  
+    tweets <- tweets %>%
+      mutate(Player = player, DateTime = time, GameId = game_id)
+
+    write_json(tweets, path = paste("~/DataSciR_2021-get-twitter-data/data/tweets/json/", player,"_", time %>% iso8601() %>% str_remove_all(":"), ".json",sep=""))
+  })
 }
 ```
 
-
+We use the bind_tweet_jsons function from the package academictwitteR and modified it to aggregate the json files for each player and save it as .RData objects.
 ```{r bind_tweet_jsons_function}
 # change the bind_tweet_json function from academictwitteR to use a different pattern
 bind_tweet_jsons <- function(player, data_path = paste(mainDir, "tweets/json",sep="")) {
-  if(substr(data_path, nchar(data_path), nchar(data_path)) != "/"){
+    if(substr(data_path, nchar(data_path), nchar(data_path)) != "/"){
     data_path <- paste0(data_path,"/")
   }
   # parse and bind
@@ -142,58 +145,107 @@ bind_tweet_jsons <- function(player, data_path = paste(mainDir, "tweets/json",se
   if(length(files)<1){
     stop(paste("There are no files matching the pattern ‘",player, "_‘", " in the specified directory.", sep = ""))
   }
-  
   files <- paste(data_path, files, sep = "")
   
-  pb = utils::txtProgressBar(min = 0,
-                             max = length(files),
-                             initial = 0)
-  
-  json.df.all <- data.frame()
+  df.all <- data.frame()
   for (i in seq_along(files)) {
     filename = files[[i]]
-    json.df <- jsonlite::read_json(filename, simplifyVector = TRUE)
-    json.df.all <- dplyr::bind_rows(json.df.all, json.df)
-    utils::setTxtProgressBar(pb, i)
+    df <- jsonlite::read_json(filename, simplifyVector = TRUE)
+    df.all <- dplyr::bind_rows(df.all, df)
+    print(files[[i]])
   }
   cat("\n")
-  return(json.df.all)
+  df.all <- df.all %>%
+  list.save(file = paste(mainDir, "tweets/RData/", player, "_tweets.RData",sep=""))
 }
 ```
 
-In our final step we make the actual search for relevant tweets, utilizing the functions and calls defined beforehand. The extracted tweets then get stored into a named list to have a collection of tweets for each player we've selected as relevant.
+In our final step we make the actual search for relevant tweets, utilizing the functions and calls defined beforehand. 
 ```{r save_tweets}
-#game_time <- game_time %>% tail( -126)
-
-# a/antetgi01 201711180DAL Giannis_An34 2017-11-18 21:00:00
-# 	a/antetgi01 201712220MIL Giannis_An34 2017-12-22 20:00:00
-#a/antetgi01 201801200PHI Giannis_An34 2018-01-20 19:30:00
-# a/antetgi01 201812050MIL Giannis_An34 2018-12-05 20:00:00
-#a/antetgi01 201901040MIL Giannis_An34 2019-01-04 20:30:00
-#	a/antetgi01 201901210MIL Giannis_An34 2019-01-21 14:00:00
-#	 a/antetgi01 201901250MIL Giannis_An34 2019-01-25 20:30:00
-#	a/antetgi01 201902020WAS Giannis_An34 2019-02-02 19:00:00
-#a/antetgi01 201903170MIL Giannis_An34 2019-03-17 15:30:00
-#	a/antetgi01 201903260MIL Giannis_An34 2019-03-26 20:00:00
-# a/antetgi01 201905210TOR Giannis_An34 2019-05-21 20:30:00
-#a/antetgi01 201905230MIL Giannis_An34 2019-05-23 20:30:00
-#a/antetgi01 201905250TOR Giannis_An34 2019-05-25 20:30:00
-#b/bookede01 201812190BOS DevinBook 2018-12-19 19:30:00
-#b/bookede01 201902060UTA DevinBook 2019-02-06 21:00:00
-#b/brownja02 201805250CLE FCHWPO 2018-05-25 20:30:00
-
 # actual call to save all tweets 
 pmap(list(
   player = game_time$Twitter,
   time = game_time$DateTime,
   game_id = game_time$BBRef_Game_ID,
-  starttime = (game_time$DateTime- hours(48)) %>% iso8601() %>% paste("Z", sep = ""),
-  endtime = (game_time$DateTime- minutes(45)) %>% iso8601() %>% paste("Z", sep = "")
+  starttime = (game_time$DateTime - hours(48)) %>% iso8601() %>% paste("Z", sep = ""),
+  endtime = (game_time$DateTime - minutes(45)) %>% iso8601() %>% paste("Z", sep = "")
   ),
   save_tweets)
 
-# named list to save tweets by player
-map(game_time$Twitter %>% unique(), bind_tweet_jsons) %>%
-  set_names(game_time$Twitter %>% unique()) %>%
-  list.save(file = paste(mainDir, "/tweets/tweets_list.RData",sep=""))
+# save tweets by player in .RData
+map(game_time$Twitter %>% unique(), bind_tweet_jsons) 
 ```
+
+In order to see which queries resulted in an error or queries that contain nothing (which can be seen in the console) we use an anti_join.
+```{r missing_tweets }
+get_tweets <- function(player){
+  # all unique player, datetime, gameid combinations
+  tweets <- load(file = paste(mainDir, "tweets/RData/",player,"_tweets.RData",sep="")) %>%
+  select(Player, DateTime, GameId) %>%
+  unique() %>%
+  mutate(DateTime = DateTime %>% as_datetime())
+  
+  dates <- game_time %>%
+  filter(Twitter == player) %>%
+  unique() 
+
+  missing_dates <- dates %>%
+  anti_join(tweets, by = c("BBRef_Game_ID" = "GameId","Twitter"= "Player", "DateTime" = "DateTime"))
+
+  return(missing_dates)
+}
+# dataframe for every missing combination
+missing_tweets <- map_dfr(game_time %>% select(Twitter) %>% unique() %>% pull(), get_tweets)
+
+# load the missing data
+
+# -> Code 503
+pmap(list(
+  player = missing_tweets$Twitter,
+  time = missing_tweets$DateTime,
+  game_id = missing_tweets$BBRef_Game_ID,
+  starttime = (missing_tweets$DateTime - hours(48)) %>% iso8601() %>% paste("Z", sep = ""),
+  endtime = (missing_tweets$DateTime - minutes(45)) %>% iso8601() %>% paste("Z", sep = "")
+  ),
+  save_tweets)
+```
+
+To analyse the tweets in the following steps we isolate the desired information and save them as .csv.
+Every .csv is then combined to one final dataset.
+```{r all_tweets}
+tweet_csv <- function(){
+  data_path <- paste(mainDir, "tweets/RData",sep="")
+  files <- list.files(path = file.path(data_path))
+  
+  for (i in seq_along(files)) { 
+    print(files[[i]])
+    df <- list.load(file = paste(mainDir, "tweets/RData/",files[[i]],sep=""))
+    
+    df <- df %>%
+      select(text, Player, DateTime, GameId, public_metrics) 
+    
+    df <- df %>%
+      mutate(retweet_count = df$public_metrics$retweet_count) %>%
+      mutate(reply_count = df$public_metrics$reply_count) %>%
+      mutate(like_count = df$public_metrics$like_count) %>%
+      mutate(quote_count = df$public_metrics$quote_count) %>%
+      select(text, Player, DateTime, GameId, retweet_count, reply_count, like_count, quote_count)
+    
+    df %>%
+      write.csv(file = paste(mainDir, "tweets/csv/", df$Player[1], "_tweets.csv",sep=""), fileEncoding = "UTF-8")
+  }
+}
+
+tweet_csv()
+
+
+tweets <- list.files(path=paste(mainDir, "tweets/csv/",sep=""), full.names = TRUE) %>% 
+  lapply(read_csv) %>% 
+  bind_rows
+
+tweets %>% 
+  write.csv(file = paste(mainDir, "tweets.csv",sep=""), fileEncoding = "UTF-8")
+```
+
+
+
