@@ -16,6 +16,7 @@ Before getting started let's first set up our environment. To extract the data f
 ```{r setup, warning = FALSE, message = FALSE}
 library(tidyverse)
 library(rvest)
+library(naniar)
 ```
 
 
@@ -321,7 +322,7 @@ get_game_metadata <- function(season) {
   
   game_metadata <- html %>% 
     html_element("div.filter") %>%
-    html_element("a") %>% 
+    html_elements("a") %>% 
     html_attr("href") %>% 
     map_dfr(get_game_schedule)
   

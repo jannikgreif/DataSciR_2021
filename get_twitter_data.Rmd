@@ -1,0 +1,251 @@
+---
+title: "get_twitter_data"
+output: pdf_document
+---
+
+```{r packages, message = FALSE}
+library(readr)
+library(anytime)
+library(lubridate)
+library(academictwitteR)
+library(tidyverse)
+library(jsonlite)
+library(rtweet)
+library(rlist)
+library(purrr)
+library(naniar)
+library(rlist)
+library(plyr)
+```
+##crawling the Twitter API for relevant tweets
+
+This part contains the whole pipeline of extracting the relevant tweets for our analysis. But before we can exploit the API, some pre-work has to be done which will be described in this section.
+
+In the following, the main directory for our created data gets set up and the four datasets we created from the NBAStats source get loaded.
+```{r data_and_specify_directory}
+# set main directory to save data to
+mainDir <- "./data/" 
+
+player_metadata <- read_csv(paste(mainDir,"player-metadata.csv", sep =""))
+player_game_stats <- read_csv(paste(mainDir,"player-game-stats.csv", sep =""))
+game_metadata <- read_csv(paste(mainDir,"game-metadata.csv", sep =""))
+player_season_stats <- read_csv(paste(mainDir,"player-season-stats.csv", sep =""))
+
+# create directories if they don't exist
+if (!dir.exists(paste(mainDir, "tweets/", sep =""))) {dir.create(paste(mainDir, "tweets/", sep =""))}
+if (!dir.exists(paste(mainDir, "tweets/json/", sep =""))) {dir.create(paste(mainDir, "tweets/json/", sep =""))}
+```
+
+Before we can start with the extraction of relevant tweets for our NBA players, we have to narrow down the number of players to be considered by our pipeline. The data sets above are created over 227 players. As the process of collecting tweets for such a number of individuals would be a huge overload, we decided to pick those top players, which are most relevant for us, following some criteria we set up before.
+First of all we pick those players, which continuously played in the regular seasons 2016/17 - 2018/19. We didn't consider the playoffs here, as many players didn't get into the playoffs with their teams but still played a full regular season and therefore are provide enough interesting play-data for our analysis. Furthermore, we only wanted those players in our data set, which stayed at their respective team for the whole time of observation [line 42-45]. The idea behind this was to eliminate team changes as possible factors that influence the player's performance aside those we want to observe. The resulting data was stored in the "player_season" table.
+
+As second perimeter we inspected the variable "Box Plus/Minus" (BPM) in the player_game_stats data set, which is a score-based performance indicator that "estimates a basketball player's contribution to the team when that player is on the court. [...] BPM uses a player's box score information, position, and the team's overall performance to estimate the player's contribution in points above league average per 100 possessions played."[insert reference: https://www.basketball-reference.com/about/bpm2.html]
+With this estimate, we wanted to extract those players, whose performance is relatively unstable in comparison to their colleagues by computing the standard deviation of performance for each player and storing them from the highest deviation in descending order in the "player_sd" table.
+
+Finally we merged the "player-sd" values of the players with their respective twitter-account data, including the count of followers, the count of posted statuses, the count of accounts indicated as favourites and the player's screen name.
+
+Now the last step was to create a final set of players we wanted to consider in our analysis by merging the two data sets created into one and picking the top intersecting players.
+
+```{r select_relevant_players} 
+# players who played for the same team during the seasons 2016/17/18/19
+player_team_count <- player_season_stats %>%
+  filter(Season == "2016-17" |Season == "2017-18" | Season == "2018-19") %>%
+  filter(SeasonType == "Regular Season") %>%
+  group_by(BBRef_Player_ID) %>%
+  filter(n() == 3) %>%
+  summarize(m = length(unique(Team)))
+
+player_season <- player_team_count %>%
+  filter(m == 1) %>%
+  select(BBRef_Player_ID) %>%
+  inner_join(player_game_stats)
+
+# sd of players using BPM as metric  
+player_sd <- player_season %>%
+  group_by(BBRef_Player_ID) %>%
+  summarize(sd_bpm = sd(BPM,na.rm = TRUE)) %>%
+  left_join(player_metadata) %>%
+  filter(sd_bpm >= 8)
+
+# combine with twitter profile data 
+player_twitter_sd <- lookup_users(player_sd %>% select(Twitter) %>% pull()) %>%
+  select(followers_count, statuses_count, favourites_count, screen_name) %>%
+  inner_join(player_sd, by = c("screen_name" = "Twitter"))
+
+# list of players to choose from
+final_player_list <- player_team_count %>%
+  filter(m == 1) %>%
+  inner_join(player_season_stats) %>%
+  filter(Season == "2016-17" |Season == "2017-18" | Season == "2018-19") %>%
+  filter(SeasonType == "Regular Season") %>%
+  group_by(BBRef_Player_ID) %>%
+  summarize(game_count = sum(G)) %>%
+  inner_join(player_twitter_sd) %>%
+  left_join(player_metadata)
+
+final_player_list <- final_player_list %>%
+  filter(followers_count >= 1000)
+```
+
+To successfully extract the tweets relevant to a player in the following step, we first need to merge the player data with the dates and times on which they have played matches. These times also get extracted from the "player_game_stats" data set and then filtered by the seasons we want to observe (note that we don't consider the season 2016/17 as this was only used to grant that the players also stayed at their respective team the time before our observation) as well as the selection of players we want to consider.
+Then a final data set "game_time" was created, including the recently merged data as well as the variables of the "game_metadata" data set.
+```{r combine_player_and_game_datetimes}
+# select the relevant game ids, datetimes and player names
+player_game <- player_game_stats %>%
+  filter(BBRef_Player_ID %in% final_player_list$BBRef_Player_ID) %>%
+  filter(Season == "2017-18" | Season == "2018-19") %>%
+  select(BBRef_Player_ID, BBRef_Game_ID) %>%
+  left_join(final_player_list %>% select(BBRef_Player_ID, Twitter)) 
+
+#final dataset to use in the twitter api
+game_time <- player_game %>%
+  left_join(game_metadata %>% select(BBRef_Game_ID, DateTime))
+```
+
+The following function was created to extract relevant tweets related to a player. We decided to not only take into account all tweets that lie in the time before a match but limit the period to consider by the following criteria:
+- the extraction should start 48 hours before a player's game
+- the extraction should end 45 minutes before a player's game
+especially the second limitation was selected as NBA players are not allowed to look into their mobile phones 15 minutes before a match and it is very unlikely that they even have a glimpse into it 45 minutes before, as they're already in the locker rooms, preparing for the game. The first limitation was selected by the fact that each NBA team has a match every two days, so it stood to reason to only inspect tweets in the time after the last match. We only include tweets writen in english and tweets that aren't retweets. Retweets don't have any additional information - the retweet count is accessable on the original tweet. Each query consists of the unique player and GameId combination and is saved in small json files to counteract data loss.
+```{r save_tweets_function}
+# function to get the tweets for every unique game,player combination
+save_tweets <- function(player, time, game_id, starttime, endtime){
+  try({
+    tweets <- get_all_tweets( 
+    query = player,              
+    is_retweet = FALSE,
+    start_tweets = starttime,
+    end_tweets = endtime,
+    lang = "en",
+    bearer_token = bearer_token)
+  
+    tweets <- tweets %>%
+      mutate(Player = player, DateTime = time, GameId = game_id)
+
+    write_json(tweets, path = paste("~/DataSciR_2021-get-twitter-data/data/tweets/json/", player,"_", time %>% iso8601() %>% str_remove_all(":"), ".json",sep=""))
+  })
+}
+```
+
+We use the bind_tweet_jsons function from the package academictwitteR and modified it to aggregate the json files for each player and save it as .RData objects.
+```{r bind_tweet_jsons_function}
+# change the bind_tweet_json function from academictwitteR to use a different pattern
+bind_tweet_jsons <- function(player, data_path = paste(mainDir, "tweets/json",sep="")) {
+    if(substr(data_path, nchar(data_path), nchar(data_path)) != "/"){
+    data_path <- paste0(data_path,"/")
+  }
+  # parse and bind
+  files <-
+    list.files(
+      path = file.path(data_path),
+      pattern = paste("^",player,sep=""),
+      recursive = T,
+      include.dirs = T
+    )
+  
+  if(length(files)<1){
+    stop(paste("There are no files matching the pattern ‘",player, "_‘", " in the specified directory.", sep = ""))
+  }
+  files <- paste(data_path, files, sep = "")
+  
+  df.all <- data.frame()
+  for (i in seq_along(files)) {
+    filename = files[[i]]
+    df <- jsonlite::read_json(filename, simplifyVector = TRUE)
+    df.all <- dplyr::bind_rows(df.all, df)
+    print(files[[i]])
+  }
+  cat("\n")
+  df.all <- df.all %>%
+  list.save(file = paste(mainDir, "tweets/RData/", player, "_tweets.RData",sep=""))
+}
+```
+
+In our final step we make the actual search for relevant tweets, utilizing the functions and calls defined beforehand. 
+```{r save_tweets}
+# actual call to save all tweets 
+pmap(list(
+  player = game_time$Twitter,
+  time = game_time$DateTime,
+  game_id = game_time$BBRef_Game_ID,
+  starttime = (game_time$DateTime - hours(48)) %>% iso8601() %>% paste("Z", sep = ""),
+  endtime = (game_time$DateTime - minutes(45)) %>% iso8601() %>% paste("Z", sep = "")
+  ),
+  save_tweets)
+
+# save tweets by player in .RData
+map(game_time$Twitter %>% unique(), bind_tweet_jsons) 
+```
+
+In order to see which queries resulted in an error or queries that contain nothing (which can be seen in the console) we use an anti_join.
+```{r missing_tweets }
+get_tweets <- function(player){
+  # all unique player, datetime, gameid combinations
+  tweets <- load(file = paste(mainDir, "tweets/RData/",player,"_tweets.RData",sep="")) %>%
+  select(Player, DateTime, GameId) %>%
+  unique() %>%
+  mutate(DateTime = DateTime %>% as_datetime())
+  
+  dates <- game_time %>%
+  filter(Twitter == player) %>%
+  unique() 
+
+  missing_dates <- dates %>%
+  anti_join(tweets, by = c("BBRef_Game_ID" = "GameId","Twitter"= "Player", "DateTime" = "DateTime"))
+
+  return(missing_dates)
+}
+# dataframe for every missing combination
+missing_tweets <- map_dfr(game_time %>% select(Twitter) %>% unique() %>% pull(), get_tweets)
+
+# load the missing data
+
+# -> Code 503
+pmap(list(
+  player = missing_tweets$Twitter,
+  time = missing_tweets$DateTime,
+  game_id = missing_tweets$BBRef_Game_ID,
+  starttime = (missing_tweets$DateTime - hours(48)) %>% iso8601() %>% paste("Z", sep = ""),
+  endtime = (missing_tweets$DateTime - minutes(45)) %>% iso8601() %>% paste("Z", sep = "")
+  ),
+  save_tweets)
+```
+
+To analyse the tweets in the following steps we isolate the desired information and save them as .csv.
+Every .csv is then combined to one final dataset.
+```{r all_tweets}
+tweet_csv <- function(){
+  data_path <- paste(mainDir, "tweets/RData",sep="")
+  files <- list.files(path = file.path(data_path))
+  
+  for (i in seq_along(files)) { 
+    print(files[[i]])
+    df <- list.load(file = paste(mainDir, "tweets/RData/",files[[i]],sep=""))
+    
+    df <- df %>%
+      select(text, Player, DateTime, GameId, public_metrics) 
+    
+    df <- df %>%
+      mutate(retweet_count = df$public_metrics$retweet_count) %>%
+      mutate(reply_count = df$public_metrics$reply_count) %>%
+      mutate(like_count = df$public_metrics$like_count) %>%
+      mutate(quote_count = df$public_metrics$quote_count) %>%
+      select(text, Player, DateTime, GameId, retweet_count, reply_count, like_count, quote_count)
+    
+    df %>%
+      write.csv(file = paste(mainDir, "tweets/csv/", df$Player[1], "_tweets.csv",sep=""), fileEncoding = "UTF-8")
+  }
+}
+
+tweet_csv()
+
+
+tweets <- list.files(path=paste(mainDir, "tweets/csv/",sep=""), full.names = TRUE) %>% 
+  lapply(read_csv) %>% 
+  bind_rows
+
+tweets %>% 
+  write.csv(file = paste(mainDir, "tweets.csv",sep=""), fileEncoding = "UTF-8")
+```
+
+
+
