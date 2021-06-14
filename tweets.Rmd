@@ -77,7 +77,7 @@ relevant_player_stats
 
 
 ```{r extract_and_save_tweets}
-token <- "AAAAAAAAAAAAAAAAAAAAAMJSQAEAAAAAxo6ezvCA34%2F%2B1gBbknootwxLdqs%3DtP8sqsQarCLEhnQXuFYXN79PxWfpG0btbSvDmBEZfePpM23Zyy"
+token <- "" # Insert bearer-token here
 time_window <- 48
 tweet_cols <- c("Player", "BBRef_Game_ID", "id", "text", "created_at", "retweet_count", "reply_count", "like_count", "quote_count")
 alrdy_proc_plyrs <- list.files(tweet_dir) %>% map_chr(~ str_remove(.x, "\\.csv$"))
