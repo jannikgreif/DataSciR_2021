@@ -55,7 +55,8 @@ relevant_players <- player_season_stats %>%
   pmap_dfr(function(...){
     relevant_player <- tibble(...)
     twitter_meta <- relevant_player$Twitter %>% 
-      lookup_users()
+      lookup_users() %>% 
+      select(c("screen_name", "followers_count"))
     inner_join(relevant_player, twitter_meta, by = c("Twitter" = "screen_name"))
   }) %>% filter(followers_count >= 1000) %>% 
   select(player_metadata %>% names())
@@ -105,12 +106,13 @@ relevant_player_stats %>%
         bearer_token = token
       ) %>% 
         mutate(Player = player_game_data$Twitter) %>% 
-        mutate(BBRef_Game_ID = player_game_data$BBRef_Game_ID) %>% 
-        mutate(retweet_count = public_metrics$retweet_count) %>% 
-        mutate(reply_count = public_metrics$reply_count) %>% 
-        mutate(like_count = public_metrics$like_count) %>% 
-        mutate(quote_count = public_metrics$quote_count)
-    }) %>% select(tweet_cols)
+        mutate(BBRef_Game_ID = player_game_data$BBRef_Game_ID)
+    }) %>% 
+      mutate(retweet_count = public_metrics$retweet_count) %>% 
+      mutate(reply_count = public_metrics$reply_count) %>% 
+      mutate(like_count = public_metrics$like_count) %>% 
+      mutate(quote_count = public_metrics$quote_count) %>% 
+      select(tweet_cols)
     
     file_name <- .x$Twitter %>% unique() %>% paste0(".csv")
     file_path <- tweet_dir %>% paste(file_name, sep = "/")
