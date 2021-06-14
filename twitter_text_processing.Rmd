@@ -10,6 +10,8 @@ library(dplyr)
 library(tidytext)
 library(textdata)
 library(syuzhet)
+library(Unicode) ## hat für r_emoji_sentiment gefehlt
+library(stringi) ## hat für die funktion add_sentiment_emoji
 ```
 
 ```{r load_data}
