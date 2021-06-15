@@ -1,18 +1,20 @@
 ---
-output:
-  pdf_document: default
-bibliography: references.bib
-csl: ieee.csl
-subtitle: DataSciR - Project Notebook
-title: The Impact of NBA player-related Social Media Posts on their on-court Performance - An Analysis 
+title: The Impact of NBA player-related Social Media Posts on their on-court Performance
+  - An Analysis
 author: "Frank Dreyer, Kolja Günther, Jannik Greif"
 date: "20.05.2021"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+subtitle: DataSciR - Project Notebook
+bibliography: references.bib
+csl: ieee.csl
 header-includes:
-  - \usepackage{titling}
-  - \pretitle{\begin{center}
-    \includegraphics[width=2in,height=2in]{"datascir.png"}\LARGE\\}
-  - \posttitle{\end{center}}
-link-citations: true
+- \usepackage{titling}
+- \pretitle{\begin{center} \includegraphics[width=2in,height=2in]{"datascir.png"}\LARGE\\}
+- \posttitle{\end{center}}
+link-citations: yes
 ---
 \newpage
 
@@ -21,7 +23,7 @@ link-citations: true
 The project is documented here: https://github.com/jannikgreif/DataSciR_2021
 
 
-## Team Member
+## Team Members
 
 ```{r team, echo = FALSE}
 library(knitr)
@@ -72,8 +74,6 @@ Document the implementation and the results of the analysis in a document. Addit
 With this, we can refine our initial research question as follows: \newline
 **Can we find a correlation between negative/positive Social Media posts related to a specific NBA player and his on-court performance in the following matches?**
 
-
-
 ## The Datasets
 
 **Twitter API/ rtweet:** \newline    
@@ -97,12 +97,6 @@ kbl(funtions, booktabs = T, linesep = "") %>%
   kable_styling(latex_options = "striped")
 ```
 \newpage
-The following example illustrates the different variables that are saved using search_tweets().
-```{r rtweet}
-options(width = 100)
-library(rtweet)
-names(search_tweets("#NBA", n = 10))
-```
 
 \newpage
 
@@ -125,11 +119,10 @@ kbl(table, booktabs = T, linesep = "") %>%
   kable_styling(latex_options = "HOLD_position") %>%
   kable_styling(latex_options = "striped")
 ```
-  
 
-## Design Overview
+## The Data
 
-To answer the specified research question we will use the statistical programming language R including the following packages: 
+<!--To answer the specified research question we used the statistical programming language R including the following packages: 
 
 - tidyverse (includes packages like ggplot2 for visualization, dplyr for data manipulation, etc.) [-@tidyverse]
 - rvest [-@rvest]
@@ -137,11 +130,77 @@ To answer the specified research question we will use the statistical programmin
 - tidytext [-@tidytext]
 - Shiny [-@shiny]
 
-We plan to address the project objectives as follows: \newline
+We addressed the project objectives as follows: \newline
 
-**Objective 1: Dataset Creation** 
+**Objective 1: Dataset Creation**
+--> 
+The main challenge in the preprocessing phase of our project was to create suitable data sets which reflect both of our variables we wanted to include into our analysis. For the player's performance variable we needed to create a set of datasets which cover all neccessary statistics and metadata to be able to derive all needed values. For the sentiment variable of the tweets referring to one respective player, we first needed to narrow down the selection of players whose tweets we wanted to contain and then extract all tweets that are related to this set of players. How this was done is described in the following section.
 
-To extract the tweets we will use rtweet which provides access to the Twitter API.
+### NBA Stats Datasets
+To get the needed data about players, games, seasons and all relevant meta-data, we extracted statistical data from [basketball-reference.com] (https://www.basketball-reference.com),a site which provides historized basketball statistics of basketball players and teams from various US American and European leagues including the NBA. From this we created local .csv files for different metrics.
+
+#### player-metadata
+Before extracting stats about NBA players and games, we had to check, which players even have a twitter account. Fortunately for us, [basketball-reference.com](https://basketball-reference.com) provides a list of [Twitter usernames of NBA players](https://www.basketball-reference.com/friv/twitter.html), so we loaded the account names into the player-metadata.csv, along with an unique BBRef_Player_ID, which we took over from [basketball-reference.com](https://basketball-reference.com), and the clear name of the respective players.
+With this set of players we now wanted to extract further statistics.
+
+#### player season-stats
+The goal of this data set was to create a table which included all the statistics of players on season-level. As a basketball season is split into a regular season (comparable to our "Bundesliga"-system) and a playoff season (comparable to a tournaments k.o.-phase) which only the best teams of one regular season pass to, [basketball-reference.com](https://basketball-reference.com) provides two separate data sets, one for each season type.
+To combine those data sets and map them to each player in one table, we 
+Finally the data set contained one tuple of statistics for each player and season/seasontype he participated in, including the following metrics:
+- Age: The player's age at the time of the respective season
+- Team: The team for which the player was under contract in the respective season
+- Pos: The player's position in the team
+- G: The number of games, played by the player during the respective season
+- GS: The number of games, in which the player started from the beginning on
+- MP: The average number of minutes played per game
+- FG: The average number of field goals scored per game
+- FGA: The average number of field goal attempts per game
+- FG%: THe percentage of scored field goals
+- 3P: The average number of 3-point-field goals scored per game
+- 3PA: The average number of 3-point-field goal attempts per game
+- 3P%: The percentage of scored 3-point-field goals
+- 2P: The average number of 2-point-field goals scored per game
+- 2PA: The average number of 2-point-field goal attempts per game
+- 2P%: The percentage of scored 2-point-field goals 
+- eFG5: effective field goal percentage, which adjusts for the fact that a 3-point field goal is worth more than a 2-point field goal etc.
+- FT: The average number of free Throws per game
+- FTA: The average number of free throw attempts per game
+- FT%: The average number of free throw percentage
+- ORB: The average number of offensive rebounds per game
+- DRB: The average number of defensive rebounds per game
+- TRB: The average number of total rebounds per game
+- AST: The average number of assist per game
+- STL: The average number of steals per game
+- BLK: The average number of blocks per game
+- TOV: The average number of turnovers per game
+- PF: The average number of personal fouls per game
+- PTS: The average number of points scored per game
+
+#### game-metadata
+
+#### player-game-stats
+
+### Twitter Dataset
+The Twitter-Dataset contains all Tweets related to the players we want to inspect in our analysis for their on-court performance and this part contains the whole pipeline of extracting these relevant tweets. But before we can exploit the API, some pre-work has to be done.
+First, we set up the main directory for our data to be created and the four datasets we previously created from the NBAStats source get loaded. In the next step and before we could start with the extraction of relevant tweets for our NBA players, we had to narrow down the number of players to be considered by our pipeline. The data sets above were created over 227 players. As the process of collecting tweets for such a number of individuals would be a huge overload, we decided to pick those top players, which are most relevant for us, following some criteria we set up in the following.
+
+#### Players who played actively for the same team
+First of all we picked those players, which continuously played in the regular seasons 2016/17 - 2018/19. We didn't consider the playoffs here, as many players didn't get into the playoffs with their teams but still played a full regular season and therefore are provide enough interesting play-data for our analysis. Furthermore, we only wanted those players in our data set, which stayed at their respective team for the whole time of observation. The idea behind this was to eliminate team switches as possible factors that influence the player's performance aside those we want to observe. Additionally we wanted only those players who had on-court time in at least 80% of the games during their regular season.
+
+#### Players whose BPM varied by a standard deviation of at least 8
+As third parameter we inspected the variable "Box Plus/Minus" (BPM) in the player_game_stats data set, which is a score-based performance indicator that "estimates a basketball player's contribution to the team when that player is on the court. [...] BPM uses a player's box score information, position, and the team's overall performance to estimate the player's contribution in points above league average per 100 possessions played."[insert reference: https://www.basketball-reference.com/about/bpm2.html]
+With this estimate, we wanted to extract those players, whose performance is relatively unstable in comparison to their colleagues by computing the standard deviation of performance for each player and storing them from the highest deviation in descending order. on this data set we applied a cutoff value to get only those players, whose standard deviation was higher or equal to 8.
+
+#### Players with at least 1000 followers
+The last parameter we wanted to include into our selection concerned about the players who have a minimal follower count of 1000 users on Twitter. For this we ...!!!
+
+#### Merging the parameters
+Finally we merged the cut off standard deviation values of the players with their respective twitter-account data, including the count of followers, the count of posted statuses, the count of accounts indicated as favourites and the player's screen name.Now the last step was to create a final set of players we wanted to consider in our analysis by merging the two data sets created into one and picking the top intersecting players.
+
+### Extracting the relevant tweets
+With the given data we were now able to extract exactly those tweets we needed for our analysis. To do so, we chose to use the get_all_tweets function from the academictwitteR packagage.
+
+To extract the tweets we used rtweet which provides access to the Twitter API.
 To extract the game statistics of NBA players from basketball-reference.com we will make use of the web scraping package rvest.
 Since the measured performance of a player is rather unreliable, if he only gets a small amount of playing time we will only consider players that on average get at least 20 minutes of playing time. 
 The performance of players is rather unstable over many seasons. To address this issue we will only consider games in the span of two seasons for a player. 
@@ -156,7 +215,9 @@ NRC from Saif Mohammad and Peter Turney [-@noauthor_nrc_nodate] provides categor
 The sentiment scores and emotion proportions of the tweets a player received in the 12-hour window before a game will then be averaged and linked to the respective game statistics of the player which builds our dataset for the analysis. 
 
 
-**Objective 2: Exploratory Data Analysis**
+<!--**Objective 2: Exploratory Data Analysis**
+-->
+## Exploratory Data Analysis
 
 For data visualization and to manipulate the data frame with respect to the analysis we will use ggplot2 and dplyr, respectively (both included in tidyverse)
 To measure the performance of a player in a game we will use his Plus/Minus score (see above) since it considers the overall contribution of the player to the team when he is on-court (also includes his defensive effort and generally the contribution to his team to score points). 
@@ -164,7 +225,10 @@ To assess the relationship between the aggregated sentiment score of tweets a pl
 In case there is no clear linear relationship we may also consider the Predictive Power Score [-@wetschoreck_rip_2020] to assess if there is a non-linear relationship between the two variables. 
 We may also distinguish between game days where players received highly positive tweets (e.g. averaged sentiment score above 4) and game days where they received highly negative tweets (e.g. averaged sentiment score below -4) to test if there is a significant difference in game-day performance between these two groups (e.g. by using a two-tailed paired-samples t-test). 
 
-**Objective 3: Presentation**
+### Sentiment Analysis
+The 
+
+<!--**Objective 3: Presentation**
 
 The final project documentation will be written as RMarkdown notebook containing all previously done work and our results. The plots that we created with ggplot2 and dplyr get integrated into the file to underpin our findings.
 A project website in which we present our main results as general overview is planned to be written most likely using blogdown combined with an integration of shiny apps, which provides us a good method to embed our results into the web presence.
@@ -172,7 +236,7 @@ With OBS Studio as a screen capturing tool and DaVinci Resolve as state-of-the-a
 The project presentation will then be designed with Microsoft PowerPoint or Prezi which is a powerful tool to create interactive and exciting slideshows.
 
 
-<!--- ## Time Plan
+## Time Plan
 
 **Phase 1: Literature Research about related works, methods and approaches/ Initial project setup** \newline 
 Finding relevant literature of related works is significant to identify, whether and to which extent research was already done that is close to our project. On the one hand, this helps to avoid doing research that was already done, on the other hand, we can use the perceptions of this literature as foundation for our work.
@@ -228,67 +292,6 @@ Steps:
 - Assessing a proper significance test for the given variables
 - Statistical testing of the results’ significance \newline
 
-Milestones/Results:
-
-- Final research results, suitable for expressive documentation & presentation of the project \newline
-
-**Phase 5: Paperwork and Finalization** \newline 
-Finally, our research results need to be put in the right form. A Rmarkdown project notebook will contain all relevant information about the project, including an overview and motivation, related work, a detailed description of the data used, all relevant steps of the exploratory data analysis and a final justification of and personal feedback to the project. Additionally a project website and short screencast will wrap up the main findings in an interactive fashion to allow a quick glimpse into our work. \newline 
-
-Steps:
-
-- Creation of a Rmarkdown process notebook as documentation of the whole project process, beginning from the general idea, up to the discussion of final results and personal feedback about the overall workflow
-- Setting up a project website that represents our research results in an interactive fashion
-- Generation of project screencast & presentation which tell a story about our project, underlined with meaningful plots and explanatory results \newline 
-
-Milestones/Results:
-
-- Final project submission
-- Project presentation
-
-### Gantt Diagram
-
-```{r gantt, echo = FALSE,warnings = FALSE, message=FALSE}
-library("ganttrify")
-invisible(Sys.setlocale("LC_TIME","C"))
-
-gantt <- data.frame(wp = c(rep("Phase 1: Team Formation, Literature Research & Project Proposal",times = 6),
-                           rep("Phase 2: Data Cleaning, Transformation & Integration",times = 5),
-                           rep("Phase 3: Exploratory Data Analysis", times = 5),
-                           rep("Phase 4: Evaluation of the Results", times =3),
-                           rep("Phase 5: Paperwork & Finalization", times = 5)),
-                    activity = c("Find a research subject", "Review of related work", "Identification of relevant data","Formulation of a Project Proposal","Milestone: Proposal Submission","Milestone: Proposal Feedback",
-                                 "Identification & extraction of relevant Twitter posts","Sentiment Analysis","Transformation of NBA data","Integration of the datasets  & cleaning","Milestone: Final Dataset",
-                                 "Descriptive Data Analysis","Choice of meaningful variables","Identification of possible correlations","Creation of meaningful plots","Milestone: Final Correlation Analysis",
-                                 "Hypothesis testing","Statistical testing of result significance","Milestone: Final Research Results",
-                                 "Rmarkdown Process Notebook","Website","Screencast & presentation","Milestone: Final Project Submission","Milestone: Project Presentation"),
-                    start_date = as.Date(c("20.04.2021","25.04.2021","25.04.2021","25.04.2021","20.05.2021","22.05.2021","20.05.2021","24.05.2021","24.05.2021","30.05.2021","01.06.2021","02.06.2021","02.06.2021","07.06.2021","02.06.2021","12.06.2021","13.06.2021","13.06.2021","20.06.2021","21.06.2021","21.06.2021","21.06.2021","06.07.2021","09.07.2021"), format = "%d.%m.%Y"),
-                    end_date = as.Date(c("25.04.2021","15.05.2021","15.05.2021","20.05.2021","20.05.2021","22.05.2021","24.05.2021","30.05.2021","30.05.2021","01.06.2021","01.06.2021","07.06.2021","07.06.2021","12.06.2021","12.06.2021","12.06.2021","20.06.2021","20.06.2021","20.06.2021","06.07.2021","06.07.2021","06.07.2021","06.07.2021","09.07.2021"), format = "%d.%m.%Y"))
-
-ganttrify(project = gantt,
-          month_number_label = FALSE,
-          size_text_relative = 1,
-          size_wp = 3,
-          size_activity = 3,
-          exact_date = TRUE) +
-      ggplot2::geom_vline(xintercept = Sys.Date(),color="grey50")
-```
-
-### Responsibilities
-```{r responsibilities, echo = FALSE,warnings = FALSE, message=FALSE}
-responsibilities <- data.frame(Task = c("Find a research subject", "Review of related work", "Identification of relevant data","Formulation of a Project Proposal",
-                                 "Identification & extraction of relevant Twitter posts","Sentiment Analysis","Transformation of NBA data","Integration of the datasets  & cleaning",
-                                 "Descriptive Data Analysis","Choice of meaningful variables","Identification of possible correlations","Creation of meaningful plots",
-                                 "Hypothesis testing","Statistical testing of result significance",
-                                 "Rmarkdown Process Notebook","Website","Screencast & presentation"),
-                              Responsibility = c(rep("Team",times=4),"Jannik","Jannik, Kolja","Frank","Kolja",rep("Team",times=6),"Frank","Jannik","Kolja"))
-
-kbl(responsibilities, booktabs = T, linesep = "") %>%
-  kable_styling(position = "center") %>%
-  kable_styling(latex_options = "HOLD_position") %>%
-  kable_styling(latex_options = "striped")
-
-```
 --->
 \newpage
 
