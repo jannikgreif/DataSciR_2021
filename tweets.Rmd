@@ -98,8 +98,6 @@ relevant_player_stats %>%
       start_tweets = player_game_data$StartTweet %>% iso8601() %>% paste0("Z")
       end_tweets = player_game_data$EndTweet %>% iso8601() %>% paste0("Z")
       
-      print(player_game_data$Twitter %>% paste(player_game_data$BBRef_Game_ID, sep = "   Game: "))
-      
       twts <- tibble()
       
       tryCatch({
@@ -109,8 +107,7 @@ relevant_player_stats %>%
             end_tweets = end_tweets,
             is_retweet = FALSE,
             lang = "en",
-            bearer_token = token, 
-            verbose = FALSE
+            bearer_token = token
           ) %>% 
             mutate(BBRef_Player_ID = player_game_data$BBRef_Player_ID) %>% 
             mutate(BBRef_Game_ID = player_game_data$BBRef_Game_ID)
@@ -142,7 +139,6 @@ relevant_player_stats %>%
 tweets <- list.files(tweet_dir, full.names = TRUE) %>% 
   map_dfr(read_csv)
 
-# tweets <- inner_join(player_metadata, by = c("Player" = "Twitter"))
 tweets <- player_metadata %>% inner_join(tweets)
 tweets
 ```
