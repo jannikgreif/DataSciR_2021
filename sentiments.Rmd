@@ -9,12 +9,27 @@ library(tidyverse)
 library(syuzhet)
 library(Unicode) 
 library(stringi) 
+
+data_dir <- "data"
+tweets_dir <- data_dir %>% paste("tweets", sep = "/")
 ```
 
 
-```{r load_data}
-mainDir <- "./data/" 
-tweets <- read_csv(paste(mainDir,"/tweets/tweets.csv", sep =""))
+```{r load_nba_stats}
+player_metadata <- paste(data_dir,"player-metadata.csv", sep ="/") %>% read_csv()
+player_game_stats <- paste(data_dir,"player-game-stats.csv", sep ="/") %>% read_csv()
+game_metadata <- paste(data_dir,"game-metadata.csv", sep ="/") %>% read_csv()
+player_season_stats <- paste(data_dir,"player-season-stats.csv", sep ="/") %>% read_csv()
+```
+
+
+```{r load_tweets}
+tweets <- list.files(tweets_dir, full.names = TRUE) %>% 
+  map_dfr(read_csv)
+
+tweets <- player_metadata %>% inner_join(tweets)
+
+tweets
 ```
 
 
@@ -34,14 +49,15 @@ emoji_lexicon <- table %>%
   mutate(unicode = str_replace(unicode,"U","")) %>%
   mutate(unicode = str_replace(unicode,"[+]","")) %>%
   set_names("word","value")
+
+emoji_lexicon
 ```
 
 
 ```{r tmp_subset_tweets}
-
 tweets <- tweets %>% 
-  filter(Player == "KlayThompson") %>% 
-  head(100)
+  filter(Twitter == "KlayThompson") %>% 
+  head(500)
 
 ```
 
@@ -49,26 +65,25 @@ tweets <- tweets %>%
 ```{r sentiment}
 # Function to get the emoticon sentiment score for a tweet
 get_sentiment_emoji <- function(text){
-  emojis <- text %>% get_emojis()
+  unicode <- text %>% str_extract_unicodes()
   
-  tibble(unicode = emojis) %>%
+  tibble(unicode = unicode) %>%
     inner_join(emoji_lexicon, by = c("unicode" = "word")) %>%
-    summarize(sum = sum(value)) %>%
+    summarize(mean = mean(value, na.rm = TRUE)) %>%
     pull()
 }
 
-# Function to extract emojis from a tweet
-get_emojis <- function(text){
-  emojis <- text %>% 
-    str_replace_all(">", "> ") %>% 
-    str_replace_all("<", " <") %>% 
-    str_extract_all("(?<=^|\\s)<[^\\s]+") %>% 
+# Function to extract unicodes from a string
+str_extract_unicodes <- function(text){
+  unicodes <- text %>% 
+    stri_escape_unicode() %>% 
+    str_extract_all("\\\\[Uu][0-9a-zA-Z]{4,8}") %>% 
     unlist() %>% 
-    str_replace_all("<U","") %>%
-    str_replace_all("[+]","") %>%
-    str_replace_all(">","") %>% 
-    str_replace_all("000","") %>%
+    str_remove("\\\\[Uu]0*") %>% 
     str_to_upper()
+  
+  print(text)
+  print(unicodes)
 }
 
 # add sentiments for each tweet
@@ -79,13 +94,13 @@ sentiment_df <- tweets %>%
   mutate(syuzhet = map_dbl(tweets$text, ~ get_sentiment(.x, method ="syuzhet"))) %>% 
   mutate(emoji = map_dbl(tweets$text, get_sentiment_emoji))
 
-sentiment_df %>% group_by(Player, GameId) %>% 
+sentiment_df %>% group_by(BBRef_Player_ID, BBRef_Game_ID) %>% 
   summarise(
-    bing = sum(bing),
-    afinn = sum(afinn),
-    nrc = sum(nrc),
-    syuzhet = sum(syuzhet),
-    emoji = sum(emoji)
+    bing = mean(bing),
+    afinn = mean(afinn),
+    nrc = mean(nrc),
+    syuzhet = mean(syuzhet),
+    emoji = mean(emoji, na.rm = TRUE)
   )
 
 ```
