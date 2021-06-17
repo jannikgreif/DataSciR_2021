@@ -40,10 +40,10 @@ prep_tweets <- tweets %>%
     # Replace words which letters are written with spaces in between for emphasis by their semantic equivalence (e.g. "B O M B" -> "BOMB")
     txt <- replace_kern(.x)
     
-    # Replace emoji by unique identifier from sentiment lexicon
-    txt <- replace_emoji_identifier(txt)
+    # Replace emoji by description
+    txt <- replace_emoji(txt)
     
-    # Remove non-ascii characters 
+    # Replace non-ascii characters by semantic equivalent
     txt <- replace_non_ascii(txt)
     
     # Replace contractions by their multi-word forms (e.g. "I'll" -> "I will")
@@ -77,13 +77,15 @@ prep_tweets <- tweets %>%
 
 
 ```{r extract_emojis}
+emoji_sentiment_lexicon <- lexicon::hash_sentiment_emojis %>% tibble()
+emoji_regex <- emoji_sentiment_lexicon$x %>% paste(collapse = "|")
+
 prep_tweets <- prep_tweets %>% 
   mutate(emojis = map_chr(tweets$text, ~ {
     .x %>% 
-      stri_escape_unicode() %>% 
-      str_extract_all("\\\\[Uu][0-9a-zA-Z]{4,8}") %>% 
+      replace_emoji_identifier() %>% 
+      str_extract_all(emoji_regex) %>% 
       unlist() %>% 
-      map_chr(stri_unescape_unicode) %>% 
       paste(collapse = " ")
   }))
 

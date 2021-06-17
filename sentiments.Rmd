@@ -4,14 +4,20 @@ output: html_document
 ---
 ```{r packages, message = FALSE}
 library(rvest)
-library(stringr)
 library(tidyverse)
-library(syuzhet)
-library(Unicode) 
+library(magrittr) # for %$% operator
+
+library(stringr)
+library(Unicode)
 library(stringi) 
+library(sentimentr)
+library(lexicon)
+library(textclean)
+
 
 data_dir <- "data"
 tweets_dir <- data_dir %>% paste("tweets", sep = "/")
+sentiments_dir <- data_dir %>% paste("sentiments", sep = "/")
 ```
 
 
@@ -29,78 +35,61 @@ tweets <- list.files(tweets_dir, full.names = TRUE) %>%
 
 tweets <- player_metadata %>% inner_join(tweets)
 
-tweets
+prep_tweets <- data_dir %>% paste("prep-tweets.csv", sep = "/") %>% read_csv()
+
+tweets %>% inner_join(prep_tweets) %>% select(c(text, prep_text))
 ```
 
 
-```{r emoji_lexicon}
-# get the emoji unicode and sentiment score
-emojis_url <- "http://kt.ijs.si/data/Emoji_sentiment_ranking/index.html"
-content <- read_html(emojis_url)
+```{r jockers_rinker_sentiments}
+jockers_rinker_sentiments <- prep_tweets %>%
+  mutate(sentences = get_sentences(prep_text)) %$%  
+  sentiment_by(sentences, list(id)) %>% 
+  tibble()
 
-table <- content %>%
-  html_element("table") %>% 
-  html_table() 
+file_path <- sentiments_dir %>% paste("jockers-rinker.csv", sep = "/")
+jockers_rinker_sentiments %>% write_csv(file_path)
 
-emoji_lexicon <- table %>%
-  select(Unicodecodepoint, `Sentiment score[-1...+1]`) %>%
-  set_names("unicode","sentiment_score") %>%
-  mutate(unicode = as.u_char(unicode)) %>%
-  mutate(unicode = str_replace(unicode,"U","")) %>%
-  mutate(unicode = str_replace(unicode,"[+]","")) %>%
-  set_names("word","value")
-
-emoji_lexicon
+jockers_rinker_sentiments
 ```
 
 
-```{r tmp_subset_tweets}
-tweets <- tweets %>% 
-  filter(Twitter == "KlayThompson") %>% 
-  head(500)
+```{r novak_emoji_sentiments}
+novak_emoji_sentiments <- prep_tweets %>%
+  filter(emojis != "") %>% 
+  filter(! is.na(emojis)) %>%
+  mutate(emojis = replace_emoji_identifier(emojis)) %>% 
+  mutate(sentences = get_sentences(emojis)) %$%
+  sentiment_by(sentences, list(id), polarity_dt = hash_sentiment_emojis) %>% 
+  tibble() 
 
+file_path <- sentiments_dir %>% paste("novak-emoji.csv", sep = "/")
+novak_emoji_sentiments %>% write_csv(file_path)
+
+novak_emoji_sentiments 
 ```
 
 
-```{r sentiment}
-# Function to get the emoticon sentiment score for a tweet
-get_sentiment_emoji <- function(text){
-  unicode <- text %>% str_extract_unicodes()
-  
-  tibble(unicode = unicode) %>%
-    inner_join(emoji_lexicon, by = c("unicode" = "word")) %>%
-    summarize(mean = mean(value, na.rm = TRUE)) %>%
-    pull()
-}
+```{r load_sentiments}
+jockers_rinker <- sentiments_dir %>% 
+  paste("jockers-rinker.csv", sep = "/") %>% 
+  read_csv() %>% 
+  select(c(id, word_count, ave_sentiment)) %>% 
+  rename(jockers_rinker = ave_sentiment)
 
-# Function to extract unicodes from a string
-str_extract_unicodes <- function(text){
-  unicodes <- text %>% 
-    stri_escape_unicode() %>% 
-    str_extract_all("\\\\[Uu][0-9a-zA-Z]{4,8}") %>% 
-    unlist() %>% 
-    str_remove("\\\\[Uu]0*") %>% 
-    str_to_upper()
-  
-  print(text)
-  print(unicodes)
-}
+novak_emoji <- sentiments_dir %>% 
+  paste("novak-emoji.csv", sep = "/") %>% 
+  read_csv() %>% 
+  select(c(id, ave_sentiment)) %>% 
+  rename(novak_emoji = ave_sentiment)
 
-# add sentiments for each tweet
-sentiment_df <- tweets %>%
-  mutate(bing = map_dbl(tweets$text, ~ get_sentiment(.x, method = "bing"))) %>%
-  mutate(afinn = map_dbl(tweets$text, ~ get_sentiment(.x, method ="afinn"))) %>%
-  mutate(nrc = map_dbl(tweets$text, ~ get_sentiment(.x, method ="nrc"))) %>%
-  mutate(syuzhet = map_dbl(tweets$text, ~ get_sentiment(.x, method ="syuzhet"))) %>% 
-  mutate(emoji = map_dbl(tweets$text, get_sentiment_emoji))
+sentiments <- tweets %>% 
+  inner_join(prep_tweets) %>% 
+  select(c(id, text, prep_text)) %>% 
+  inner_join(jockers_rinker) %>% 
+  left_join(novak_emoji)
 
-sentiment_df %>% group_by(BBRef_Player_ID, BBRef_Game_ID) %>% 
-  summarise(
-    bing = mean(bing),
-    afinn = mean(afinn),
-    nrc = mean(nrc),
-    syuzhet = mean(syuzhet),
-    emoji = mean(emoji, na.rm = TRUE)
-  )
-
+sentiments
 ```
+
+
