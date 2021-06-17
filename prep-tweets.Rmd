@@ -1,0 +1,103 @@
+---
+title: "preprocessing"
+author: "Frank Dreyer"
+date: "16 6 2021"
+output: html_document
+---
+
+```{r packages, message = FALSE}
+library(rvest)
+library(tidyverse)
+
+# For Preprocessing
+library(stringr)
+library(textclean)
+library(Unicode)
+library(stringi) 
+
+data_dir <- "data"
+tweets_dir <- data_dir %>% paste("tweets", sep = "/")
+```
+
+
+```{r load_tweets}
+tweets <- list.files(tweets_dir, full.names = TRUE) %>% 
+  map_dfr(read_csv) %>% 
+  select(c(id, text)) %>% 
+  
+  # Eliminate duplicate tweets (addressed to multiple players) to accelerate processing
+  unique() %>% 
+  
+  # Temporarily limit tweets
+  head(1000)
+```
+
+
+```{r preprocess_tweets}
+prep_tweets <- tweets %>% 
+  mutate(prep_text = map_chr(tweets$text, ~{
+      
+    # Replace words which letters are written with spaces in between for emphasis by their semantic equivalence (e.g. "B O M B" -> "BOMB")
+    txt <- replace_kern(.x)
+    
+    # Replace emoji by unique identifier from sentiment lexicon
+    txt <- replace_emoji_identifier(txt)
+    
+    # Remove non-ascii characters 
+    txt <- replace_non_ascii(txt)
+    
+    # Replace contractions by their multi-word forms (e.g. "I'll" -> "I will")
+    txt <- replace_contraction(txt)
+    
+    # Text to lowercase 
+    txt <- str_to_lower(txt)
+    
+    # Remove Twitter URL's, mentions and hashtags
+    txt <- replace_url(txt) 
+    txt <- replace_tag(txt)
+    txt <- replace_hash(txt)
+    
+    # Replace html symbols by semantic equivalent symbol (e.g. "&amp;" -> "and")
+    txt <- replace_html(txt)
+    txt <- replace_symbol(txt)
+    
+    # Replace word lenghenings to emphasize or alter word meanings by their semantic equivalence (e.g. "I said heyyy!" -> "I said hey sexy!")
+    txt <- replace_word_elongation(txt, impart.meaning = TRUE) 
+    
+    # Replace internet slang by their semantic equivalence (e.g. "YOLO" -> "You only live once")
+    txt <- replace_internet_slang(txt)
+    
+    # Replace white space characters by single white space and trim
+    txt <- replace_white(txt)
+    txt <- str_trim(txt)
+    
+  }))
+  
+```
+
+
+```{r extract_emojis}
+prep_tweets <- prep_tweets %>% 
+  mutate(emojis = map_chr(tweets$text, ~ {
+    .x %>% 
+      stri_escape_unicode() %>% 
+      str_extract_all("\\\\[Uu][0-9a-zA-Z]{4,8}") %>% 
+      unlist() %>% 
+      map_chr(stri_unescape_unicode) %>% 
+      paste(collapse = " ")
+  }))
+
+prep_tweets
+```
+
+
+```{r store_preprocessed_tweets}
+file_path <- data_dir %>% paste("prep-tweets.csv", sep = "/")
+
+prep_tweets %>% 
+  select(c(id, prep_text, emojis)) %>% 
+  write_csv(file_path)
+```
+
+
+
