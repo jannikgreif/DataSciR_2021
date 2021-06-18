@@ -3,15 +3,9 @@ title: "sentiments"
 output: html_document
 ---
 ```{r packages, message = FALSE}
-library(rvest)
 library(tidyverse)
 library(magrittr) # for %$% operator
-
-library(stringr)
-library(Unicode)
-library(stringi) 
 library(sentimentr)
-library(lexicon)
 library(textclean)
 
 
@@ -48,7 +42,7 @@ jockers_rinker_sentiments
 # Note: download for "afinn" has to be confirmed
 hash_sentiment_afinn <- tidytext::get_sentiments("afinn") %>% 
   rename(c(x = word, y = value)) %>% 
-  as_key()
+  as_key() # convert tibble to data table for sentimentr
 
 afinn_sentiments <- prep_tweets %>% 
   mutate(sentences = get_sentences(prep_text)) %$%
@@ -62,13 +56,39 @@ afinn_sentiments
 ```
 
 
+```{r nrc_sentients}
+nrc_sentiments <- prep_tweets %>% 
+  mutate(sentences = get_sentences(prep_text)) %$%
+  sentiment_by(sentences, list(id), polarity_dt = lexicon::hash_sentiment_nrc) %>% 
+  tibble()
+
+file_path <- sentiments_dir %>% paste("nrc.csv", sep = "/")
+nrc_sentiments %>% write_csv(file_path)
+
+nrc_sentiments
+```
+
+
+```{r bing_sentiments}
+bing_sentiments <- prep_tweets %>% 
+  mutate(sentences = get_sentences(prep_text)) %$%
+  sentiment_by(sentences, list(id), polarity_dt = lexicon::hash_sentiment_huliu) %>% 
+  tibble()
+
+file_path <- sentiments_dir %>% paste("bing.csv", sep = "/")
+bing_sentiments %>% write_csv(file_path)
+
+bing_sentiments
+```
+
+
 ```{r novak_emoji_sentiments}
 novak_emoji_sentiments <- prep_tweets %>%
   filter(emojis != "") %>% 
   filter(! is.na(emojis)) %>%
   mutate(emojis = replace_emoji_identifier(emojis)) %>% 
   mutate(sentences = get_sentences(emojis)) %$%
-  sentiment_by(sentences, list(id), polarity_dt = hash_sentiment_emojis) %>% 
+  sentiment_by(sentences, list(id), polarity_dt = lexicon::hash_sentiment_emojis) %>% 
   tibble() 
 
 file_path <- sentiments_dir %>% paste("novak-emoji.csv", sep = "/")
@@ -85,23 +105,37 @@ jockers_rinker <- sentiments_dir %>%
   select(c(id, word_count, ave_sentiment)) %>% 
   rename(jockers_rinker = ave_sentiment)
 
-novak_emoji <- sentiments_dir %>% 
-  paste("novak-emoji.csv", sep = "/") %>% 
-  read_csv() %>% 
-  select(c(id, ave_sentiment)) %>% 
-  rename(novak_emoji = ave_sentiment)
-
 afinn <- sentiments_dir %>% 
   paste("afinn.csv", sep = "/") %>% 
   read_csv() %>% 
   select(c(id, ave_sentiment)) %>% 
   rename(afinn = ave_sentiment)
 
+novak_emoji <- sentiments_dir %>% 
+  paste("novak-emoji.csv", sep = "/") %>% 
+  read_csv() %>% 
+  select(c(id, ave_sentiment)) %>% 
+  rename(novak_emoji = ave_sentiment)
+
+nrc <- sentiments_dir %>% 
+  paste("nrc.csv", sep = "/") %>% 
+  read_csv() %>% 
+  select(c(id, ave_sentiment)) %>% 
+  rename(nrc = ave_sentiment)
+
+bing <- sentiments_dir %>% 
+  paste("bing.csv", sep = "/") %>% 
+  read_csv() %>% 
+  select(c(id, ave_sentiment)) %>% 
+  rename(bing = ave_sentiment)
+
 sentiments <- tweets %>% 
   inner_join(prep_tweets) %>% 
   select(c(id, text, prep_text)) %>% 
   inner_join(jockers_rinker) %>% 
   inner_join(afinn) %>% 
+  inner_join(nrc) %>% 
+  inner_join(bing) %>% 
   left_join(novak_emoji)
 
 sentiments
