@@ -1,0 +1,139 @@
+---
+title: "preprocessing"
+author: "Frank Dreyer"
+date: "16 6 2021"
+output: html_document
+---
+
+```{r packages, echo = FALSE, message = FALSE, warning = FALSE}
+library(rvest)
+library(tidyverse)
+library(stringr)
+library(textclean)
+
+knitr::opts_chunk$set(
+  echo = FALSE, 
+  eval = FALSE, 
+  message = FALSE,
+  warning = FALSE
+)
+
+data_dir <- "../data"
+tweets_dir <- data_dir %>% paste("tweets", sep = "/")
+```
+
+Before extracting sentiments from the tweets it is reasonable to preprocess them in advance in order to improve the accuracy of the computed sentiments. That is why we used the `textclean` package to apply the following preprocessing steps on each tweet: 
+
+* Lowercased each tweet. 
+* Resolved non-ascii characters. 
+* Replaced html-symbols by word meanings (e.g. "&amp" to "and").
+* Replaced (multiple succeeding) white space symbols by single white spaces (e.g. "\\t" by " ").
+* Removed Twitter mentions, hashtags as well as URLs (e.g. "@StephenCurry30", "#BBNFOREVER", "https://t.co/37cSfQhMJs"). 
+* Replaced emojis by word meaning (e.g. ":)" to "simley"). 
+* Replaced contractions by their multi-word forms (e.g. "I'll" to "I will"). 
+* Replaced common words which letters were written with spaces in between (for emphasis) by their semantic equivalent without spaces (e.g. "B O M B" to "BOMB").
+* Replaced word lengthenings to emphasize or alter word meanings by their semantic equivalent (e.g. "niiiice" to "nice").
+* Replaced internet slang and abbreviations by their semantic equivalent (e.g. "YOLO" to "you only live once").
+
+It should be noted that stemming (i.e. Porter Stemming) was not applied to the tweets since the terms are written in their base form in the sentiment lexicons. Additionally stopword-removal was not performed to avoid the risk of removing potentially crucial valence shifters for the sentiment extraction (e.g. in "I am **not** happy" the term "**not**" negates the sentiment and should therefore not be removed).
+
+Besides the preprocessing of the textual information of the tweets itself, emojis were extracted from the each tweet and stored by their key representation (from the **_Novak_** Emoji Sentiment Lexicon) in a separate variable separated by white spaces in order to use them for an encapsulated emoji sentiment computation for the individual tweets. 
+
+```{r load_tweets, eval = TRUE}
+tweets <- list.files(tweets_dir, full.names = TRUE) %>% 
+  map_dfr(read_csv) %>% 
+  select(c(id, text)) %>% 
+  
+  # Eliminate duplicate tweets (addressed to multiple players) to accelerate processing
+  unique() 
+```
+
+
+```{r preprocess_tweets}
+prep_tweets <- tweets %>% 
+  mutate(prep_text = imap_chr(tweets$text, ~{
+    
+    print(.y %>% paste(nrow(tweets), sep = "/"))
+      
+    # Replace words which letters are written with spaces in between for emphasis by their semantic equivalence (e.g. "B O M B" -> "BOMB")
+    txt <- replace_kern(.x)
+    
+    # Replace emoji by description
+    txt <- replace_emoji(txt)
+    
+    # Replace non-ascii characters by semantic equivalent
+    txt <- replace_non_ascii(txt)
+    
+    # Replace contractions by their multi-word forms (e.g. "I'll" -> "I will")
+    txt <- replace_contraction(txt)
+    
+    # Text to lowercase 
+    txt <- str_to_lower(txt)
+    
+    # Remove Twitter URL's, mentions and hashtags
+    txt <- replace_url(txt) 
+    txt <- replace_tag(txt)
+    txt <- replace_hash(txt)
+    
+    # Replace html symbols by semantic equivalent symbol (e.g. "&amp;" -> "and")
+    txt <- replace_html(txt)
+    txt <- replace_symbol(txt)
+    
+    # Replace word lenghenings to emphasize or alter word meanings by their semantic equivalence (e.g. "I said heyyy!" -> "I said hey sexy!")
+    txt <- replace_word_elongation(txt, impart.meaning = TRUE) 
+    
+    # Replace internet slang by their semantic equivalence (e.g. "YOLO" -> "You only live once")
+    txt <- replace_internet_slang(txt)
+    
+    # Replace white space characters by single white space and trim
+    txt <- replace_white(txt)
+    txt <- str_trim(txt)
+    
+  }))
+  
+```
+
+
+```{r extract_emojis}
+emoji_sentiment_lexicon <- lexicon::hash_sentiment_emojis %>% tibble()
+emoji_regex <- emoji_sentiment_lexicon$x %>% paste(collapse = "|")
+
+prep_tweets <- prep_tweets %>% 
+  mutate(emojis = map_chr(tweets$text, ~ {
+    .x %>% 
+      replace_emoji_identifier() %>% 
+      str_extract_all(emoji_regex) %>% 
+      unlist() %>% 
+      paste(collapse = " ")
+  }))
+```
+
+
+```{r store_preprocessed_tweets}
+file_path <- data_dir %>% paste("prep-tweets.csv", sep = "/")
+
+prep_tweets %>% 
+  select(c(id, prep_text, emojis)) %>% 
+  write_csv(file_path)
+```
+
+
+```{r load_preprocessed_tweets, eval = TRUE}
+prep_tweets <-data_dir %>% 
+  paste("prep-tweets.csv", sep = "/") %>% 
+  read_csv()
+```
+
+The following table gives an idea about the performed preprocessing steps: 
+
+```{r display_preprocessed_tweets, eval = TRUE, message = TRUE}
+tweets %>% 
+  inner_join(prep_tweets) %>% 
+  select(c(text, prep_text, emojis)) %>% 
+  unique()
+```
+
+
+
+
+

@@ -1,0 +1,107 @@
+---
+title: "twitter_text_processing"
+output: html_document
+---
+```{r packages, message = FALSE}
+library(rvest)
+library(stringr)
+library(tidyverse)
+library(dplyr)
+library(tidytext)
+library(textdata)
+library(syuzhet)
+library(Unicode) ## hat für r_emoji_sentiment gefehlt
+library(stringi) ## hat für die funktion add_sentiment_emoji
+```
+
+```{r load_data}
+mainDir <- "./data/" 
+tweets <- read_csv(paste(mainDir,"/tweets/tweets.csv", sep =""))
+```
+
+```{r emoji_sentiment}
+# get the emoji unicode and sentiment score
+# http://kt.ijs.si/data/Emoji_sentiment_ranking/index.html
+content <- read_html("http://kt.ijs.si/data/Emoji_sentiment_ranking/index.html")
+
+table <- content %>%
+  html_table() 
+
+emoji_lexicon <- table[[1]] %>%
+  select(Unicodecodepoint, `Sentiment score[-1...+1]`) %>%
+  set_names("unicode","sentiment_score") %>%
+  mutate(unicode = as.u_char(unicode)) %>%
+  mutate(unicode = str_replace(unicode,"U","")) %>%
+  mutate(unicode = str_replace(unicode,"[+]","")) %>%
+  set_names("word","value")
+```
+
+```{r sentiment}
+# change to all players
+text_df <- tweets %>% filter(Player == "KlayThompson") %>% head(100)
+
+add_sentiment <- function(text, method){
+  get_sentiment(text, method)
+}
+
+# add sentiments for each tweet
+text_df <- text_df %>%
+  mutate(bing = map(text_df$text,~add_sentiment(.x, method ="bing"))) %>%
+  mutate(afinn = map(text_df$text,~add_sentiment(.x, method ="afinn"))) %>%
+  mutate(nrc = map(text_df$text,~add_sentiment(.x, method ="nrc"))) %>%
+  mutate(syuzhet = map(text_df$text,~add_sentiment(.x, method ="syuzhet"))) %>% 
+  unnest(cols = c(bing, afinn, nrc, syuzhet))
+
+# prepare text for emojis
+text_df <- text_df %>%
+  mutate(emoji = map(text_df$text,~str_replace_all(.x,"<", " <"))) %>%
+  unnest(cols = c(emoji))
+  
+text_df <- text_df %>%
+  mutate(emoji = map(text_df$emoji,~str_replace_all(.x,">", "> ")))%>%
+  unnest(cols = c(emoji))
+
+
+get_emojis <- function(text){
+  emoji <- text %>% str_extract_all("(?<=^|\\s)<[^\\s]+") %>% unlist()
+  emoji <- emoji %>% str_replace_all("<U"," ") %>%
+    str_replace_all("[+]","") %>%
+    str_replace_all(">"," ") %>% 
+    str_replace_all("000","") %>%
+    str_to_upper()
+}
+
+text_df <- text_df %>%
+  mutate(emoji = map(text_df$emoji,~get_emojis(.x))) 
+
+text_df <- text_df %>%
+  mutate(emoji = map(text_df$emoji,~paste(unlist(.x), collapse=' '))) %>%
+  unnest(cols = c(emoji))
+
+
+add_sentiment_emoji <- function(text){
+  data.frame(unicode = unlist(stri_extract_all_words(text))) %>%
+    inner_join(emoji_lexicon, by = c("unicode" = "word")) %>%
+  summarize(sum = sum(value)) %>%
+  pull()
+}
+
+text_df <- text_df %>%
+  mutate(emoji_score = map(text_df$emoji,~add_sentiment_emoji(.x))) %>%
+  unnest(cols = c(emoji_score))
+
+#save result to .csv
+
+#----------------------------------------------  
+
+text_df %>%
+  group_by(Player, GameId) %>%
+  summarize(bing = sum(bing),
+            afinn = sum(afinn),
+            nrc = sum(nrc),
+            syuzhet = sum(syuzhet),
+            emoji = sum(emoji_score))
+
+```
+
+

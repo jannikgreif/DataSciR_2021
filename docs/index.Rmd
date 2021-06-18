@@ -1,0 +1,27 @@
+---
+output:
+  revealjs::revealjs_presentation:
+    theme: simple
+    transition: slide
+    background_transition: slide
+---
+
+--- 
+
+## {data-background="title.jpg"}
+</br>
+The Impact of NBA player-related Social Media Posts on their on-court Performance - An Analysis 
+</br></br></br></br></br></br></br></br></br></br>
+<small>[Github](https://github.com/jannikgreif/DataSciR_2021)</small>
+
+<small>Use <- & -> to navigate </small>
+
+--- 
+
+## {data-background-iframe="https://www.youtube.com/embed/bOPiVvZo4kQ"}
+
+---
+
+Test
+
+---
