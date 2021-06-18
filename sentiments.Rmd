@@ -6,7 +6,6 @@ output: html_document
 library(tidyverse)
 library(magrittr) # for %$% operator
 library(sentimentr)
-library(textclean)
 
 knitr::opts_chunk$set(
   echo = FALSE, 
