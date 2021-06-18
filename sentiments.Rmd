@@ -21,23 +21,13 @@ sentiments_dir <- data_dir %>% paste("sentiments", sep = "/")
 ```
 
 
-```{r load_nba_stats}
-player_metadata <- paste(data_dir,"player-metadata.csv", sep ="/") %>% read_csv()
-player_game_stats <- paste(data_dir,"player-game-stats.csv", sep ="/") %>% read_csv()
-game_metadata <- paste(data_dir,"game-metadata.csv", sep ="/") %>% read_csv()
-player_season_stats <- paste(data_dir,"player-season-stats.csv", sep ="/") %>% read_csv()
-```
-
-
 ```{r load_tweets}
 tweets <- list.files(tweets_dir, full.names = TRUE) %>% 
   map_dfr(read_csv)
 
-tweets <- player_metadata %>% inner_join(tweets)
-
 prep_tweets <- data_dir %>% paste("prep-tweets.csv", sep = "/") %>% read_csv()
 
-tweets %>% inner_join(prep_tweets) %>% select(c(text, prep_text))
+tweets %>% inner_join(prep_tweets) %>% select(c(text, prep_text, emojis))
 ```
 
 
@@ -51,6 +41,24 @@ file_path <- sentiments_dir %>% paste("jockers-rinker.csv", sep = "/")
 jockers_rinker_sentiments %>% write_csv(file_path)
 
 jockers_rinker_sentiments
+```
+
+
+```{r afinn_sentiments}
+# Note: download for "afinn" has to be confirmed
+hash_sentiment_afinn <- tidytext::get_sentiments("afinn") %>% 
+  rename(c(x = word, y = value)) %>% 
+  as_key()
+
+afinn_sentiments <- prep_tweets %>% 
+  mutate(sentences = get_sentences(prep_text)) %$%
+  sentiment_by(sentences, list(id), polarity_dt = hash_sentiment_afinn) %>% 
+  tibble()
+
+file_path <- sentiments_dir %>% paste("afinn.csv", sep = "/")
+afinn_sentiments %>% write_csv(file_path)
+
+afinn_sentiments
 ```
 
 
@@ -83,13 +91,19 @@ novak_emoji <- sentiments_dir %>%
   select(c(id, ave_sentiment)) %>% 
   rename(novak_emoji = ave_sentiment)
 
+afinn <- sentiments_dir %>% 
+  paste("afinn.csv", sep = "/") %>% 
+  read_csv() %>% 
+  select(c(id, ave_sentiment)) %>% 
+  rename(afinn = ave_sentiment)
+
 sentiments <- tweets %>% 
   inner_join(prep_tweets) %>% 
   select(c(id, text, prep_text)) %>% 
   inner_join(jockers_rinker) %>% 
+  inner_join(afinn) %>% 
   left_join(novak_emoji)
 
 sentiments
 ```
-
 

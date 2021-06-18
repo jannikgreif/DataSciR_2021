@@ -12,8 +12,6 @@ library(tidyverse)
 # For Preprocessing
 library(stringr)
 library(textclean)
-library(Unicode)
-library(stringi) 
 
 data_dir <- "data"
 tweets_dir <- data_dir %>% paste("tweets", sep = "/")
@@ -26,16 +24,15 @@ tweets <- list.files(tweets_dir, full.names = TRUE) %>%
   select(c(id, text)) %>% 
   
   # Eliminate duplicate tweets (addressed to multiple players) to accelerate processing
-  unique() %>% 
-  
-  # Temporarily limit tweets
-  head(1000)
+  unique() 
 ```
 
 
 ```{r preprocess_tweets}
 prep_tweets <- tweets %>% 
-  mutate(prep_text = map_chr(tweets$text, ~{
+  mutate(prep_text = imap_chr(tweets$text, ~{
+    
+    print(.y %>% paste(nrow(tweets), sep = "/"))
       
     # Replace words which letters are written with spaces in between for emphasis by their semantic equivalence (e.g. "B O M B" -> "BOMB")
     txt <- replace_kern(.x)
@@ -88,8 +85,6 @@ prep_tweets <- prep_tweets %>%
       unlist() %>% 
       paste(collapse = " ")
   }))
-
-prep_tweets
 ```
 
 
@@ -100,6 +95,16 @@ prep_tweets %>%
   select(c(id, prep_text, emojis)) %>% 
   write_csv(file_path)
 ```
+
+
+```{r load_preprocessed_tweets}
+prep_tweets <-data_dir %>% 
+  paste("prep-tweets.csv", sep = "/") %>% 
+  read_csv()
+
+tweets %>% inner_join(prep_tweets) %>% select(c(text, prep_text, emojis)) %>% unique()
+```
+
 
 
 
