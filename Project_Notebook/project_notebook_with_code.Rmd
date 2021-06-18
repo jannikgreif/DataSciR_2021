@@ -1,0 +1,61 @@
+---
+title: "project_notebook_with_code"
+author: "Kolja Günther"
+date: "18 6 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE, eval = TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(rtweet)
+library(academictwitteR)
+library(anytime)
+
+knitr::opts_chunk$set(
+  echo = FALSE, 
+  eval = FALSE, 
+  message = FALSE,
+  warning = FALSE
+)
+
+data_dir <- "../data"
+tweet_dir <- data_dir %>% paste("tweets", sep = "/")
+
+# Twitter Api Credentials
+twitter_app_name <- "DataSciR"
+twitter_api_key <- "" # Insert API key here
+twitter_api_secret_key <- "" # Insert API key secret here
+twitter_access_token <- "" # Insert access token here
+twitter_access_token_secret <- "" # Insert access token secret here
+twitter_bearer_token <- "" # Insert bearer-token here
+
+twitter_token <- create_token(
+  app = twitter_app_name,
+  consumer_key = twitter_api_key,
+  consumer_secret = twitter_api_secret_key, 
+  access_token = twitter_access_token,
+  access_secret = twitter_access_token_secret
+)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
