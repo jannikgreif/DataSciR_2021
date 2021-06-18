@@ -2,90 +2,185 @@
 title: "sentiments"
 output: html_document
 ---
-```{r packages, message = FALSE}
-library(rvest)
-library(stringr)
+```{r packages, message = FALSE, echo = FALSE, warning = FALSE}
 library(tidyverse)
-library(syuzhet)
-library(Unicode) 
-library(stringi) 
+library(magrittr) # for %$% operator
+library(sentimentr)
+
+knitr::opts_chunk$set(
+  echo = FALSE, 
+  eval = FALSE, 
+  message = FALSE,
+  warning = FALSE
+)
+
+data_dir <- "data"
+tweets_dir <- data_dir %>% paste("tweets", sep = "/")
+sentiments_dir <- data_dir %>% paste("sentiments", sep = "/")
+```
+
+Our next task was to extract sentiments from the preprocessed tweets and extracted emojis. To solve this task we used the package `sentimentr`, since compared to other solutions (compare `syuzhet` and `tidytext`) `sentimentr` uses an orderd bag of words model that allows it to incorporate valance shifters before or after polarized words to negate or intensify their sentiment (e.g. "I do **not** like it!" or "I **really** like it!"). That ultimately gives `sentimentr` the power to much more accurately assign sentiments to text passages. 
+
+The sentiments were computed sentence-wise for each tweet and aggregated via the ``average_downweighted_zero`` ``sentimentr``-function that downweights sentiment-scores for sentences close to zero. 
+
+The following sentiment lexica were used to compute the sentiments for each tweet by making use of the `lexicon` package: 
+
+* **_Bing_**: positive/negative word list created by Hu Xu and Bing Liu (TODO reference).
+* **_Syuzhet_**: word list with sentiment scores reaching from -1 to 1 created by Matthew L. Jockers (TODO reference).
+* **_Jockers-Rinker_**: combined version of the Jocker's **_Syuzhet_** lexicon and Rinker's augmented **_Bing_** lexicon (TODO reference).
+* **_NRC_**: positive/negative word list created by Saif M. Mohammad (TODO reference).
+* **_AFINN_**: word list with sentiments reaching on a discrete scale from -5 to 5 created by Finn Årup Nielsen (TODO reference).
+* **_Novak_**: list of emojis with sentiment scores reaching from -1 to 1 created by Kralji Novak (TODO reference http://kt.ijs.si/data/Emoji_sentiment_ranking/index.html). It should be noted that this sentiment lexicon was only applied on the extracted emojis but not on the text of the preprocessed tweets. Furthermore tweets that contained no emojis were excluded from the sentiment computation. 
+
+
+```{r load_tweets, eval = TRUE}
+tweets <- list.files(tweets_dir, full.names = TRUE) %>% 
+  map_dfr(read_csv)
+
+prep_tweets <- data_dir %>% paste("prep-tweets.csv", sep = "/") %>% read_csv()
+
+# tweets %>% inner_join(prep_tweets) %>% select(c(text, prep_text, emojis))
 ```
 
 
-```{r load_data}
-mainDir <- "./data/" 
-tweets <- read_csv(paste(mainDir,"/tweets/tweets.csv", sep =""))
+```{r bing_sentiments}
+bing_sentiments <- prep_tweets %>% 
+  mutate(sentences = get_sentences(prep_text)) %$%
+  sentiment_by(sentences, list(id), polarity_dt = lexicon::hash_sentiment_huliu) %>% 
+  tibble()
+
+file_path <- sentiments_dir %>% paste("bing.csv", sep = "/")
+bing_sentiments %>% write_csv(file_path)
+
+bing_sentiments
 ```
 
 
-```{r emoji_lexicon}
-# get the emoji unicode and sentiment score
-emojis_url <- "http://kt.ijs.si/data/Emoji_sentiment_ranking/index.html"
-content <- read_html(emojis_url)
+```{r syuzhet_sentiments}
+syuzhet_sentiments <- prep_tweets %>% 
+  mutate(sentences = get_sentences(prep_text)) %$%
+  sentiment_by(sentences, list(id), polarity_dt = lexicon::hash_sentiment_jockers) %>% 
+  tibble()
 
-table <- content %>%
-  html_element("table") %>% 
-  html_table() 
+file_path <- sentiments_dir %>% paste("syuzhet.csv", sep = "/")
+syuzhet_sentiments %>% write_csv(file_path)
 
-emoji_lexicon <- table %>%
-  select(Unicodecodepoint, `Sentiment score[-1...+1]`) %>%
-  set_names("unicode","sentiment_score") %>%
-  mutate(unicode = as.u_char(unicode)) %>%
-  mutate(unicode = str_replace(unicode,"U","")) %>%
-  mutate(unicode = str_replace(unicode,"[+]","")) %>%
-  set_names("word","value")
+syuzhet_sentiments
 ```
 
 
-```{r tmp_subset_tweets}
+```{r jockers_rinker_sentiments}
+jockers_rinker_sentiments <- prep_tweets %>%
+  mutate(sentences = get_sentences(prep_text)) %$%  
+  sentiment_by(sentences, list(id)) %>% 
+  tibble()
 
-tweets <- tweets %>% 
-  filter(Player == "KlayThompson") %>% 
-  head(100)
+file_path <- sentiments_dir %>% paste("jockers-rinker.csv", sep = "/", polarity_dt = lexicon::hash_sentiment_jockers_rinker)
+jockers_rinker_sentiments %>% write_csv(file_path)
 
+jockers_rinker_sentiments
 ```
 
 
-```{r sentiment}
-# Function to get the emoticon sentiment score for a tweet
-get_sentiment_emoji <- function(text){
-  emojis <- text %>% get_emojis()
-  
-  tibble(unicode = emojis) %>%
-    inner_join(emoji_lexicon, by = c("unicode" = "word")) %>%
-    summarize(sum = sum(value)) %>%
-    pull()
-}
+```{r nrc_sentients}
+nrc_sentiments <- prep_tweets %>% 
+  mutate(sentences = get_sentences(prep_text)) %$%
+  sentiment_by(sentences, list(id), polarity_dt = lexicon::hash_sentiment_nrc) %>% 
+  tibble()
 
-# Function to extract emojis from a tweet
-get_emojis <- function(text){
-  emojis <- text %>% 
-    str_replace_all(">", "> ") %>% 
-    str_replace_all("<", " <") %>% 
-    str_extract_all("(?<=^|\\s)<[^\\s]+") %>% 
-    unlist() %>% 
-    str_replace_all("<U","") %>%
-    str_replace_all("[+]","") %>%
-    str_replace_all(">","") %>% 
-    str_replace_all("000","") %>%
-    str_to_upper()
-}
+file_path <- sentiments_dir %>% paste("nrc.csv", sep = "/")
+nrc_sentiments %>% write_csv(file_path)
 
-# add sentiments for each tweet
-sentiment_df <- tweets %>%
-  mutate(bing = map_dbl(tweets$text, ~ get_sentiment(.x, method = "bing"))) %>%
-  mutate(afinn = map_dbl(tweets$text, ~ get_sentiment(.x, method ="afinn"))) %>%
-  mutate(nrc = map_dbl(tweets$text, ~ get_sentiment(.x, method ="nrc"))) %>%
-  mutate(syuzhet = map_dbl(tweets$text, ~ get_sentiment(.x, method ="syuzhet"))) %>% 
-  mutate(emoji = map_dbl(tweets$text, get_sentiment_emoji))
-
-sentiment_df %>% group_by(Player, GameId) %>% 
-  summarise(
-    bing = sum(bing),
-    afinn = sum(afinn),
-    nrc = sum(nrc),
-    syuzhet = sum(syuzhet),
-    emoji = sum(emoji)
-  )
-
+nrc_sentiments
 ```
+
+
+```{r afinn_sentiments}
+# Note: download for "afinn" has to be confirmed
+hash_sentiment_afinn <- tidytext::get_sentiments("afinn") %>% 
+  rename(c(x = word, y = value)) %>% 
+  as_key() # convert tibble to data table for sentimentr
+
+afinn_sentiments <- prep_tweets %>% 
+  mutate(sentences = get_sentences(prep_text)) %$%
+  sentiment_by(sentences, list(id), polarity_dt = hash_sentiment_afinn) %>% 
+  tibble()
+
+file_path <- sentiments_dir %>% paste("afinn.csv", sep = "/")
+afinn_sentiments %>% write_csv(file_path)
+
+afinn_sentiments
+```
+
+
+```{r novak_emoji_sentiments}
+novak_emoji_sentiments <- prep_tweets %>%
+  filter(emojis != "") %>% 
+  filter(! is.na(emojis)) %>%
+  mutate(emojis = replace_emoji_identifier(emojis)) %>% 
+  mutate(sentences = get_sentences(emojis)) %$%
+  sentiment_by(sentences, list(id), polarity_dt = lexicon::hash_sentiment_emojis) %>% 
+  tibble() 
+
+file_path <- sentiments_dir %>% paste("novak-emoji.csv", sep = "/")
+novak_emoji_sentiments %>% write_csv(file_path)
+
+novak_emoji_sentiments 
+```
+
+
+```{r load_sentiments, eval = TRUE}
+bing <- sentiments_dir %>% 
+  paste("bing.csv", sep = "/") %>% 
+  read_csv() %>% 
+  select(c(id, word_count, ave_sentiment)) %>% 
+  rename(bing = ave_sentiment)
+
+syuzhet <- sentiments_dir %>% 
+  paste("syuzhet.csv", sep = "/") %>% 
+  read_csv() %>% 
+  select(c(id, ave_sentiment)) %>% 
+  rename(syuzhet = ave_sentiment)
+
+jockers_rinker <- sentiments_dir %>% 
+  paste("jockers-rinker.csv", sep = "/") %>% 
+  read_csv() %>% 
+  select(c(id, ave_sentiment)) %>% 
+  rename(jockers_rinker = ave_sentiment)
+
+afinn <- sentiments_dir %>% 
+  paste("afinn.csv", sep = "/") %>% 
+  read_csv() %>% 
+  select(c(id, ave_sentiment)) %>% 
+  rename(afinn = ave_sentiment)
+
+nrc <- sentiments_dir %>% 
+  paste("nrc.csv", sep = "/") %>% 
+  read_csv() %>% 
+  select(c(id, ave_sentiment)) %>% 
+  rename(nrc = ave_sentiment)
+
+novak_emoji <- sentiments_dir %>% 
+  paste("novak-emoji.csv", sep = "/") %>% 
+  read_csv() %>% 
+  select(c(id, ave_sentiment)) %>% 
+  rename(novak_emoji = ave_sentiment)
+
+sentiments <- tweets %>% 
+  inner_join(prep_tweets) %>% 
+  select(c(id, text, prep_text)) %>% 
+  inner_join(bing) %>%
+  inner_join(syuzhet) %>% 
+  inner_join(jockers_rinker) %>% 
+  inner_join(nrc) %>% 
+  inner_join(afinn) %>% 
+  left_join(novak_emoji)
+```
+
+The following table gives a glimpse about the computed sentiments: 
+
+```{r display_sentiments, eval = TRUE, message = TRUE}
+sentiments %>% 
+  select(- c(id, text))
+```
+
