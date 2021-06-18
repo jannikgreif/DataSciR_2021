@@ -5,7 +5,7 @@ date: "12 6 2021"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, eval = TRUE}
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
@@ -13,12 +13,35 @@ library(rtweet)
 library(academictwitteR)
 library(anytime)
 
-data_dir <- "data"
+knitr::opts_chunk$set(
+  echo = FALSE, 
+  eval = FALSE, 
+  message = FALSE,
+  warning = FALSE
+)
+
+data_dir <- "../data"
 tweet_dir <- data_dir %>% paste("tweets", sep = "/")
+
+# Twitter Api Credentials
+twitter_app_name <- "DataSciR"
+twitter_api_key <- "" # Insert API key here
+twitter_api_secret_key <- "" # Insert API key secret here
+twitter_access_token <- "" # Insert access token here
+twitter_access_token_secret <- "" # Insert access token secret here
+twitter_bearer_token <- "" # Insert bearer-token here
+
+twitter_token <- create_token(
+  app = twitter_app_name,
+  consumer_key = twitter_api_key,
+  consumer_secret = twitter_api_secret_key, 
+  access_token = twitter_access_token,
+  access_secret = twitter_access_token_secret
+)
 ```
 
 
-```{r read_nba_data}
+```{r read_nba_data, eval = TRUE}
 player_metadata <- paste(data_dir,"player-metadata.csv", sep ="/") %>% read_csv()
 player_game_stats <- paste(data_dir,"player-game-stats.csv", sep ="/") %>% read_csv()
 game_metadata <- paste(data_dir,"game-metadata.csv", sep ="/") %>% read_csv()
@@ -26,8 +49,7 @@ player_season_stats <- paste(data_dir,"player-season-stats.csv", sep ="/") %>% r
 ```
 
 
-```{r select_relevant_players}
-
+```{r select_relevant_players, eval = TRUE}
 relevant_players <- player_season_stats %>% 
   
   # Players who played actively (>= 80% of games) for the same team between 2016-2019 (3 seasons)
@@ -55,30 +77,34 @@ relevant_players <- player_season_stats %>%
   pmap_dfr(function(...){
     relevant_player <- tibble(...)
     twitter_meta <- relevant_player$Twitter %>% 
-      lookup_users() %>% 
+      lookup_users(token = twitter_token) %>% 
       select(c("screen_name", "followers_count"))
     inner_join(relevant_player, twitter_meta, by = c("Twitter" = "screen_name"))
   }) %>% filter(followers_count >= 1000) %>% 
   select(player_metadata %>% names())
-  
-  
+```
+
+
+```{r display_relevant_players, eval = TRUE, message = TRUE}
 relevant_players
 ```
 
 
-```{r select_relevant_player_stats}
+```{r select_relevant_player_stats, eval = TRUE}
 relevant_player_stats <- relevant_players %>% 
   inner_join(player_game_stats) %>% 
   filter(! is.na(MP)) %>% 
   inner_join(game_metadata) %>% 
   filter(Season %in% c("2017-18", "2018-19"))
+```
 
+
+```{r display_relevant_player_stats, eval = TRUE, message = TRUE}
 relevant_player_stats
 ```
 
 
 ```{r extract_and_save_tweets}
-token <- "" # Insert bearer-token here
 time_window <- 48
 tweet_cols <- c("BBRef_Player_ID", "BBRef_Game_ID", "id", "text", "created_at", "retweet_count", "reply_count", "like_count", "quote_count")
 alrdy_proc_plyrs <- list.files(tweet_dir) %>% map_chr(~ str_remove(.x, "\\.csv$"))
@@ -107,7 +133,7 @@ relevant_player_stats %>%
             end_tweets = end_tweets,
             is_retweet = FALSE,
             lang = "en",
-            bearer_token = token
+            bearer_token = twitter_bearer_token
           ) %>% 
             mutate(BBRef_Player_ID = player_game_data$BBRef_Player_ID) %>% 
             mutate(BBRef_Game_ID = player_game_data$BBRef_Game_ID)
@@ -135,11 +161,16 @@ relevant_player_stats %>%
 ```
 
 
-```{r load_tweets}
+```{r load_tweets, eval = TRUE}
 tweets <- list.files(tweet_dir, full.names = TRUE) %>% 
   map_dfr(read_csv)
 
 tweets <- player_metadata %>% inner_join(tweets)
+```
+
+
+```{r display_tweets, eval = TRUE, message = TRUE}
 tweets
 ```
+
 
