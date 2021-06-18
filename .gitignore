@@ -46,5 +46,9 @@ vignettes/*.pdf
 # Rmd Output files
 *.pdf
 
+# HTML Output files
+/notebooks/*.html
+/notebooks/*.htm
+
 # Others
 *.DS_Store
