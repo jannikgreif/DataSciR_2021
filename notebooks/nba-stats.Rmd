@@ -13,10 +13,20 @@ To create the final dataset for our analysis one part is the extraction of game 
 
 Before getting started let's first set up our environment. To extract the data from [basketball-reference.com](https://basketball-reference.com) we will will extensively use the web scraping library `rvest` in addition to the `tidyverse`.
 
-```{r setup, warning = FALSE, message = FALSE}
+```{r setup, warning = FALSE, message = FALSE, echo = FALSE}
 library(tidyverse)
 library(rvest)
 library(naniar)
+
+knitr::opts_chunk$set(
+  echo = FALSE, 
+  eval = FALSE, 
+  message = FALSE,
+  warning = FALSE
+)
+
+
+data_dir <- "../data"
 ```
 
 
@@ -24,7 +34,7 @@ library(naniar)
 
 With our final game statistics dataset we want to be able to link game statistics of players to tweets they received on the same day before a game. For that reason we should only consider NBA players that have an existing Twitter account. Fortunately for us, [basketball-reference.com](https://basketball-reference.com) provides a list of [Twitter usernames of NBA players](https://www.basketball-reference.com/friv/twitter.html). Let's use this information and load it into a dataframe.
 
-```{r player-metadata, eval = FALSE}
+```{r player-metadata}
 url <- "https://www.basketball-reference.com/friv/twitter.html"
 
 metadata_tbl <- read_html(url) %>% 
@@ -51,11 +61,14 @@ metadata <- tibble(
   Twitter = twitter_names
 )
 
-metadata %>% write_csv("data/player-metadata.csv")
+file_path <- data_dir %>% paste("player-metadata.csv", sep = "/")
+metadata %>% write_csv(file_path)
 ```
 
-```{r show-player-metadata}
-player_metadata <- read_csv("data/player-metadata.csv")
+```{r show-player-metadata, eval = TRUE}
+player_metadata <- data_dir %>% 
+  paste("player-metadata.csv", sep = "/") %>% 
+  read_csv()
 
 player_metadata
 ```
@@ -66,7 +79,7 @@ player_metadata
 
 Having all NBA players including their twitter names loaded into a dataframe we are now ready to extract game statistics for each player. To do that let's write a function that gets a player's basketball-reference id as input and returns a tibble including all the game statistics of games he played in from [basketball-reference.com](https://basketball-reference.com). 
 
-```{r player-season-stats, eval = FALSE}
+```{r player-season-stats}
 get_player_season_stats <- function(BBRef_Player_ID) {
   
   url <- glue::glue("https://www.basketball-reference.com/players/{BBRef_Player_ID}.html")
@@ -114,15 +127,21 @@ player_season_stats <- player_metadata$BBRef_Player_ID %>%
   mutate(Team = if_else(! is.na(Tm), Tm, Team)) %>% 
   select(-Tm)
 
-player_season_stats %>% 
-  write_csv("data/player-season-stats.csv")
+
+file_path <- data_dir %>% paste("player-season-stats.csv")
+player_season_stats %>% write_csv(file_path)
 ```
 
-```{r show-player-season-stats}
-player_season_stats <- read_csv("data/player-season-stats.csv")
+```{r load-player-season-stats, eval = TRUE}
+player_season_stats <- data_dir %>% 
+  paste("player-season-stats.csv", sep = "/") %>% 
+  read_csv()
+```
 
+```{r display-player-season-stats, eval = TRUE, message = TRUE}
 player_season_stats
 ```
+
 
 
 
@@ -131,7 +150,7 @@ player_season_stats
 - According to [Wikipedia](https://en.wikipedia.org/wiki/Twitter) Twitter was found in 2006. Probably not many NBA players had a Twitter account during that time. In 2007 only 400,000 tweets were posted per quarter. However, the popularity of Twitter skyrocketed after its founding with over 50 million daily tweets in 2010. Let's therefore only consider players that actively played from 2010 onwards. 
 - Since player performance metrics like +/- become rather unreliable if a player only gets a small amount of playing time, we only consider players that on average get at least two quarters of playing time (i.e. 24 minutes). 
 
-```{r filter-relevant-players}
+```{r filter-relevant-players, eval = TRUE}
 
 min_MP <- 24
 min_Season <- "2010"
@@ -145,13 +164,17 @@ relevant_players <- player_season_stats %>%
   ungroup() %>% 
   filter(AVG_MP >= min_MP) 
 
-relevant_players
+```
 
+
+```{r display-relevant-player, eval = TRUE, message = TRUE}
+relevant_players
 ```
 
 
 
-```{r player-game-stats, eval = FALSE}
+
+```{r player-game-stats}
 
 not_played_keys <- c(
   "Did Not Play", 
@@ -296,14 +319,20 @@ subselection <- relevant_players %>% head()
 player_game_stats <- relevant_players$BBRef_Player_ID %>%
   map_dfr(get_player_game_stats)
 
-player_game_stats %>% write_csv("data/player-game-stats.csv")
+file_path <- data_dir %>% paste("player-game-stats.csv", sep = "/")
+player_game_stats %>% write_csv(file_path)
 ```
 
-```{r show-player-game-stats}
-player_game_stats <- read_csv("data/player-game-stats.csv")
+```{r load-player-game-stats, eval = TRUE}
+player_game_stats <- data_dir %>% 
+  paste("player-game-stats.csv", sep = "/") %>% 
+  read_csv()
+```
 
+```{r display-player-game-stats, eval = TRUE, message = TRUE}
 player_game_stats
 ```
+
 
 
 ## Extracting Game Metadata
@@ -395,14 +424,20 @@ game_metadata <- player_season_stats %>%
   unique() %>% 
   map_dfr(get_game_metadata)
 
-game_metadata %>% write_csv("data/game-metadata.csv")
+file_path <- data_dir %>% paste("game-metadata.csv", sep = "/")
+game_metadata %>% write_csv(file_path)
 
 ```
 
-```{r show-game-metadata}
-game_metadata <- read_csv("data/game-metadata.csv")
+```{r load-game-metadata, eval = TRUE}
+game_metadata <- data_dir %>% 
+  paste("game-metadata.csv", sep = "/") %>% 
+  read_csv()
+```
 
+```{r display-game-metadata, eval = TRUE, message = TRUE}
 game_metadata
 ```
+
 
 
