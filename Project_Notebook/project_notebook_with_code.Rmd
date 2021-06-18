@@ -1,17 +1,38 @@
 ---
-title: "project_notebook_with_code"
-author: "Kolja Günther"
-date: "18 6 2021"
-output: html_document
+title: The Impact of NBA player-related Social Media Posts on their on-court Performance
+  - An Analysis
+author: "Frank Dreyer, Kolja Günther, Jannik Greif"
+date: "20.05.2021"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+subtitle: DataSciR - Project Notebook
+bibliography: references.bib
+csl: ieee.csl
+header-includes:
+- \usepackage{titling}
+- \pretitle{\begin{center} \includegraphics[width=2in,height=2in]{"datascir.png"}\LARGE\\}
+- \posttitle{\end{center}}
+link-citations: yes
 ---
 
 ```{r setup, include=FALSE, eval = TRUE}
 knitr::opts_chunk$set(echo = TRUE)
-
+# get-tweets packages
 library(tidyverse)
 library(rtweet)
 library(academictwitteR)
 library(anytime)
+# nba-stats packages
+library(rvest)
+library(naniar)
+# preprocessing packages
+library(stringr)
+library(textclean)
+# sentiment extraction packages
+library(magrittr) # for %$% operator
+library(sentimentr)
 
 knitr::opts_chunk$set(
   echo = FALSE, 
@@ -22,6 +43,7 @@ knitr::opts_chunk$set(
 
 data_dir <- "../data"
 tweet_dir <- data_dir %>% paste("tweets", sep = "/")
+sentiments_dir <- data_dir %>% paste("sentiments", sep = "/")
 
 # Twitter Api Credentials
 twitter_app_name <- "DataSciR"
@@ -40,22 +62,886 @@ twitter_token <- create_token(
 )
 ```
 
-## R Markdown
+\newpage
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+## Github Repository
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+The project is documented here: https://github.com/jannikgreif/DataSciR_2021
 
-```{r cars}
-summary(cars)
+
+## Team Members
+
+```{r team, echo = FALSE}
+library(knitr)
+library(kableExtra)
+team <- data.frame(Name = c("Jannik Greif","Kolja Günther","Frank Dreyer"),
+                   `Course of Studies` =c("M.Sc. Wirtschaftsinformatik","M.Sc. Data and Knowledge Engineering","M.Sc. Data and Knowledge Engineering"),
+                  Mail = c("jannik.greif@st.ovgu.de","kolja.guenther@st.ovgu.de","frank.dreyer@st.ovgu.de"), check.names = FALSE)
+kbl(team, booktabs = T, linesep = "") %>%
+  kable_styling(position = "center")%>%
+  kable_styling(latex_options = "HOLD_position")
 ```
 
-## Including Plots
+## Overview
+The project aims to discover a significant impact of social media posts addressed to NBA players before matches with respect to their influence on these players’ game performance. For this purpose, we consider NBA players that are highly active on Twitter and extract tweets that are addressed to them within a short period of time before matches via the Twitter API. A sentiment analysis indicates the attitude of the posts and with the resulting sentiment polarity scores we test if there is a correlation between social media posts and players’ on-court performance.
 
-You can also embed plots, for example:
+## Background and Motivation
+With the growing presence of social media in all areas of life, allowing people from around the world to react to current events in real-time, an increasingly controversial discussion can be noticed. Today more than ever, public figures are exposed to the reactions of millions of people, observing and commenting on every step in their life that becomes public. The resulting negative impact that extensive social media usage can have on users' behavior and mental state is subject to different scientific studies [-@kapoor_advances_2018;-@berryman_social_2018]. 
+ 
+Sports athletes, who use social media not only to communicate with peers and fans but also to promote themselves, are no exception to these issues [-@academy_does_2008]. Among researchers in the sports field, there is a consensus that the mental state of an athlete can have a significant impact on his or her performance [-@xu_measuring_2015]. However, only little research has been conducted in order to analyze if and how social media usage of athletes directly influences their performance.
+Xu and Yu [-@xu_measuring_2015] tried to capture the mood of basketball players in the NBA from the tweets they posted just before a match, using sentiment analysis, to analyze how the predicted mood influenced their performance on court. Gruettner, Vitisvorakarn and Wambsganss [-@gruttner_new_2020] used a similar approach on tennis players and additionally analyzed the relationship between the number of tweets they posted before matches and their performance within the match. Even though both contributions show that athletes with a bad predicted mood tend to perform worse on-court, they suffer from two limitations: 
+ 
+- The number of tweets an athlete posts per day is rather limited 
+- The predicted moods are not free of bias since an athlete might only post tweets how he or she wants to be seen on Twitter (also indicated in [-@gruttner_new_2020])
+ 
+Both of these limiting factors may lead to an inaccurate prediction of the mental state of athletes. \newline
+We believe that the attitude of social media posts an athlete receives from peers and fans is also a good predictor for his or her performance. Ott and Puymbroeck support this claim  [-@academy_does_2008]. In their article they list cases where athletic performance appeared to be immediately influenced by the media and conclude that the media has the potential to change the performance of an athlete in a negative as well as positive way. In this analysis we aim to assess this relationship more closely by analyzing how social media posts addressed to NBA players affect their game performance. 
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+## Related Work
+
+## The Data
+The main challenge in the preprocessing phase of our project was to create suitable data sets which reflect both of our variables we wanted to include into our analysis. For the player's performance variable we needed to create a set of datasets which cover all neccessary statistics and metadata to be able to derive all needed values. For the sentiment variable of the tweets referring to one respective player, we first needed to narrow down the selection of players whose tweets we wanted to contain and then extract all tweets that are related to this set of players. How this was done is described in the following section.
+
+### NBA Stats Datasets
+
+# Introduction
+
+To get the needed data about players, games, seasons and all relevant meta-data, we extracted statistical data from [basketball-reference.com] (https://www.basketball-reference.com),a site which provides historized basketball statistics of basketball players and teams from various US American and European leagues including the NBA. From this we created local .csv files for different metrics.
+
+## Setup
+
+Before getting started let's first set up our environment. To extract the data from [basketball-reference.com](https://basketball-reference.com) we will will extensively use the web scraping library `rvest` in addition to the `tidyverse`.
+
+```{r setup, warning = FALSE, message = FALSE, echo = FALSE}
+library(tidyverse)
+library(rvest)
+library(naniar)
+
+knitr::opts_chunk$set(
+  echo = FALSE, 
+  eval = FALSE, 
+  message = FALSE,
+  warning = FALSE
+)
+
+
+data_dir <- "../data"
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+#### player-metadata
+Before extracting stats about NBA players and games, we had to check, which players even have a twitter account. Fortunately for us, [basketball-reference.com](https://basketball-reference.com) provides a list of [Twitter usernames of NBA players](https://www.basketball-reference.com/friv/twitter.html), so we loaded the account names into the player-metadata.csv, along with an unique BBRef_Player_ID, which we took over from [basketball-reference.com](https://basketball-reference.com), and the clear name of the respective players.
+With this set of players we now wanted to extract further statistics.
+
+```{r player-metadata}
+url <- "https://www.basketball-reference.com/friv/twitter.html"
+
+metadata_tbl <- read_html(url) %>% 
+  html_element("table.stats_table") 
+
+player_td = metadata_tbl %>% 
+  html_elements("td[data-stat=\"player\"]") 
+
+twitter_td = metadata_tbl %>% 
+  html_elements("td[data-stat=\"twitter\"]")
+
+BBRef_Player_IDs = player_td %>% 
+  html_element("a") %>% 
+  html_attr("href") %>% 
+  map_chr(~ str_extract(.x, "[a-z]/[a-z]+[0-9]{2}"))
+
+player_names = player_td %>% html_text(trim = TRUE)
+
+twitter_names = twitter_td %>% html_text(trim = TRUE)
+
+metadata <- tibble(
+  BBRef_Player_ID = BBRef_Player_IDs,
+  Player = player_names,
+  Twitter = twitter_names
+)
+
+file_path <- data_dir %>% paste("player-metadata.csv", sep = "/")
+metadata %>% write_csv(file_path)
+```
+
+```{r show-player-metadata, eval = TRUE}
+player_metadata <- data_dir %>% 
+  paste("player-metadata.csv", sep = "/") %>% 
+  read_csv()
+
+player_metadata
+```
+
+#### player season-stats
+The goal of this data set was to create a table which included all the statistics of players on season-level. As a basketball season is split into a regular season (comparable to our "Bundesliga"-system) and a playoff season (comparable to a tournaments k.o.-phase) which only the best teams of one regular season pass to, [basketball-reference.com](https://basketball-reference.com) provides two separate data sets, one for each season type.
+To combine those data sets and map them to each player in one table, we 
+Finally the data set contained one tuple of statistics for each player and season/seasontype he participated in, including the following metrics:
+```{r basketball-reference, echo = FALSE}
+library(knitr)
+table <- data.frame(
+  Attribute = c("Starters / Reserves","MP","FG","FGA","FG%","3P","3PA","3P%","FT","FTA","FT%","ORB","DRB","TRB","AST","STL","BLK","TOV","PF","PTS","+/-"),
+  `Data Type` = c("String","Timediff","Int","Int","Float","Int","Int","Float","Int","Int","Float",rep("Int",times=10)),
+  Description = c("Name of player (separated in starters and reserves)","Minutes Played","Field Goals: number made shots (excluding free throws)","Field Goal Attempts = number of shot attempts (excluding free throws)","Field Goal Percentage: fraction of field goal attempts (FG/FGA)","3-Point Field Goals: number of made 3-point shots","3-Point Field Goal Attempts: number of 3-point shot attempts","3-Point Field Goal Percentage: fraction of three point shot attempts (3P/3PA)","Free Throws: number of free throw shots ","Free Throw Attempts: number of free throw shot attempts","Free Throw Percentage: fraction of free throw attempts (FT/FTA)","Offensive Rebounds","Defensive Rebounds","Total Rebounds (ORB+TRB)","Assists","Steals","Blocks","Turnovers","Personal Fouls","Points made","Estimates the players’ contribution to the team when the player is on the court"), check.names = FALSE
+)
+kbl(table, booktabs = T, linesep = "") %>%
+  kable_styling(position = "center") %>%
+  kable_styling(latex_options = "HOLD_position") %>%
+  kable_styling(latex_options = "striped")
+```
+asd.
+
+```{r player-season-stats}
+get_player_season_stats <- function(BBRef_Player_ID) {
+  
+  url <- glue::glue("https://www.basketball-reference.com/players/{BBRef_Player_ID}.html")
+  html <- read_html(url)
+  
+  html_regular_season_tbl <- html %>% html_node("table#per_game")
+  html_playoffs_tbl <- html %>% html_node("table#playoffs_per_game")
+  
+  season_stats <- NULL
+  regular_season_stats <- NULL
+  playoffs_season_stats <- NULL
+  
+  # If player participated in regular season
+  if (!is.na(html_regular_season_tbl)) {
+    regular_season_stats <- html_regular_season_tbl %>% 
+      html_table(trim = TRUE, convert = FALSE) %>% 
+      mutate(SeasonType = "Regular Season", .after = Season)
+  }
+  
+  # If player participated in playoffs
+  if (!is.na(html_playoffs_tbl)) {
+    playoffs_season_stats <- html_playoffs_tbl %>% 
+      html_table(trim = TRUE, convert = FALSE) %>% 
+      mutate(SeasonType = "Playoffs")
+  }
+  
+  # If player participated in regular season or playoffs
+  if (! is.null(regular_season_stats) | ! is.null(playoffs_season_stats)){
+    season_stats <- regular_season_stats %>%
+      bind_rows(playoffs_season_stats) %>% 
+      filter(str_detect(Season, "[0-9]{4}-[0-9]{2}")) %>%   
+      mutate(BBRef_Player_ID = BBRef_Player_ID, .before = Season) %>% 
+      naniar::replace_with_na_all(
+        condition = ~ str_detect(.x, "Did Not Play")
+      ) %>% 
+      type.convert(as.is = TRUE)
+  }
+  
+  season_stats
+  
+}
+
+player_season_stats <- player_metadata$BBRef_Player_ID %>% 
+  map_dfr(get_player_season_stats) %>% 
+  mutate(Team = if_else(! is.na(Tm), Tm, Team)) %>% 
+  select(-Tm)
+
+
+file_path <- data_dir %>% paste("player-season-stats.csv")
+player_season_stats %>% write_csv(file_path)
+```
+
+```{r load-player-season-stats, eval = TRUE}
+player_season_stats <- data_dir %>% 
+  paste("player-season-stats.csv", sep = "/") %>% 
+  read_csv()
+```
+
+```{r display-player-season-stats, eval = TRUE, message = TRUE}
+player_season_stats
+```
+
+
+
+
+## Extracting Player Game Statistics
+
+- According to [Wikipedia](https://en.wikipedia.org/wiki/Twitter) Twitter was found in 2006. Probably not many NBA players had a Twitter account during that time. In 2007 only 400,000 tweets were posted per quarter. However, the popularity of Twitter skyrocketed after its founding with over 50 million daily tweets in 2010. Let's therefore only consider players that actively played from 2010 onwards. 
+- Since player performance metrics like +/- become rather unreliable if a player only gets a small amount of playing time, we only consider players that on average get at least two quarters of playing time (i.e. 24 minutes). 
+
+```{r filter-relevant-players, eval = TRUE}
+
+min_MP <- 24
+min_Season <- "2010"
+
+relevant_players <- player_season_stats %>% 
+  filter(Season >= min_Season) %>% 
+  group_by(BBRef_Player_ID) %>% 
+  summarise(
+    AVG_MP = mean(MP, na.rm = TRUE)
+  ) %>% 
+  ungroup() %>% 
+  filter(AVG_MP >= min_MP) 
+
+```
+
+
+```{r display-relevant-player, eval = TRUE, message = TRUE}
+relevant_players
+```
+
+
+#### player-game-stats
+
+```{r player-game-stats}
+
+not_played_keys <- c(
+  "Did Not Play", 
+  "Did Not Dress", 
+  "Inactive",
+  "Not With Team",
+  "Player Suspended"
+)
+
+
+get_player_game_stats <- function(BBRef_Player_ID) {
+  
+  print(BBRef_Player_ID)
+  
+  url <- glue::glue("https://www.basketball-reference.com/players/{BBRef_Player_ID}.html")
+  html <- read_html(url)
+  
+  player_seasons <- get_player_seasons(BBRef_Player_ID)
+  BBRef_Player_ID_rep <- rep(BBRef_Player_ID, times = player_seasons %>% length())
+  
+  basic_gamelogs <- map2_dfr(
+    BBRef_Player_ID_rep, player_seasons, ~ get_gamelogs(.x, .y, "basic")
+  ) 
+  
+  advanced_gamelogs <- map2_dfr(
+    BBRef_Player_ID_rep, player_seasons, ~ get_gamelogs(.x, .y, "advanced")
+  )
+  
+  gamelogs <- inner_join(basic_gamelogs, advanced_gamelogs) %>% 
+    type.convert()
+  
+  gamelogs
+  
+}
+
+
+get_player_seasons <- function(BBRef_Player_ID) {
+  
+  url <- glue::glue("https://www.basketball-reference.com/players/{BBRef_Player_ID}.html")
+  html <- read_html(url)
+  
+  seasons <- html %>% 
+    html_elements("th[data-stat=\"season\"]") %>% 
+    html_element("a") %>% 
+    html_text() %>% 
+    unique() %>% 
+    na.omit()
+  
+  seasons
+  
+}
+
+
+get_gamelogs <- function(BBRef_Player_ID, season, gamelog_type) {
+  
+  url <- glue::glue(
+    "https://www.basketball-reference.com/players/{id}/gamelog{type}/{s}",
+    id = BBRef_Player_ID,
+    type = if_else(gamelog_type == "basic", "", paste("", gamelog_type, sep = "-")),
+    s = season %>% 
+      str_remove("[0-9]{4}-") %>% 
+      paste("0101", sep = "") %>% 
+      lubridate::ymd() %>% 
+      lubridate::year()
+  )
+  html <- read_html(url)
+  
+  print(url)
+  
+  html_regular_season_gamelog_tbl <- html %>%  
+    html_node(glue::glue("table#pgl_{gamelog_type}"))
+  
+  # Playoffs game logs embedded in HTML comment
+  html_playoffs_gamelog_tbl <- html %>% 
+    html_nodes(xpath = '//comment()') %>% 
+    html_text() %>% 
+    paste(collapse = '') %>% 
+    read_html() %>% 
+    html_node(glue::glue("table#pgl_{gamelog_type}_playoffs"))
+  
+  regular_season_gamelogs <- NULL
+  playoffs_gamelogs <- NULL
+  gamelogs <- NULL
+  
+  # If player participated in regular season game
+  if (!is.na(html_regular_season_gamelog_tbl)) {
+    regular_season_gamelogs <- html_regular_season_gamelog_tbl %>% 
+      html_table(trim = TRUE, convert = FALSE, header = NA) 
+    
+    names(regular_season_gamelogs)[6] <- "HTm"
+    names(regular_season_gamelogs)[8] <- "WL"
+    
+    regular_season_gamelogs <- regular_season_gamelogs %>% 
+      mutate(SeasonType = "Regular Season", .before = Date)
+  }
+  
+  # If player participated in playoffs game 
+  if (!is.na(html_playoffs_gamelog_tbl)) {
+    playoffs_gamelogs <- html_playoffs_gamelog_tbl %>% 
+      html_table(trim = TRUE, convert = FALSE, header = NA)
+    
+    names(playoffs_gamelogs)[6] <- "HTm"
+    names(playoffs_gamelogs)[8] <- "WL"
+    
+    playoffs_gamelogs <- playoffs_gamelogs %>% 
+      mutate(SeasonType = "Playoffs", .before = Date)
+  }
+  
+  # If player participated in regular season or playoffs
+  if (!is_null(regular_season_gamelogs) | !is_null(playoffs_gamelogs)) {
+    gamelogs <- regular_season_gamelogs %>%
+      bind_rows(playoffs_gamelogs) %>% 
+      filter(Date != "Date") %>%      # Filter out header rows
+      mutate(Season = season, .before = SeasonType) %>% 
+      mutate(BBRef_Player_ID = BBRef_Player_ID, .before = Season) %>% 
+      mutate(HTm = if_else(HTm == "@", Opp, Tm)) %>% 
+      naniar::replace_with_na_all(~ .x %in% not_played_keys) %>% 
+      mutate(BBRef_Game_ID = map2_chr(
+        Date, HTm, 
+        ~ paste(lubridate::ymd(.x) %>% format("%Y%m%d"), .y, sep = "0")
+      ), .after = BBRef_Player_ID) %>% 
+      type.convert(as.is = TRUE)
+  }
+  
+  gamelogs
+  
+}
+
+
+get_game_time <- function(game_url) {
+  
+  read_html(game_url) %>% 
+    html_element("div.scorebox_meta") %>% 
+    html_text() %>% 
+    str_extract("[0-9]{1,2}:[0-9]{2} [A|P]M")
+    
+}
+
+
+subselection <- relevant_players %>% head()
+
+player_game_stats <- relevant_players$BBRef_Player_ID %>%
+  map_dfr(get_player_game_stats)
+
+file_path <- data_dir %>% paste("player-game-stats.csv", sep = "/")
+player_game_stats %>% write_csv(file_path)
+```
+
+```{r load-player-game-stats, eval = TRUE}
+player_game_stats <- data_dir %>% 
+  paste("player-game-stats.csv", sep = "/") %>% 
+  read_csv()
+```
+
+```{r display-player-game-stats, eval = TRUE, message = TRUE}
+player_game_stats
+```
+
+
+
+#### game-metadata
+
+```{r game-metadata, eval = FALSE}
+
+get_game_metadata <- function(season) {
+  
+  year <- season %>% str_remove("[0-9]{4}-") %>% 
+    paste("0101", sep = "") %>% 
+    lubridate::ymd() %>% 
+    format("%Y")
+  
+  url <- glue::glue("https://www.basketball-reference.com/leagues/NBA_{year}_games.html")
+  html <- read_html(url)
+  
+  game_metadata <- html %>% 
+    html_element("div.filter") %>%
+    html_elements("a") %>% 
+    html_attr("href") %>% 
+    map_dfr(get_game_schedule)
+  
+  game_metadata
+  
+}
+
+
+get_game_schedule <- function(url) {
+  
+  url <- glue::glue("https://www.basketball-reference.com{url}")
+  html <- read_html(url)
+  
+  html_schedule_tbl <- html %>% html_node("table#schedule")
+  
+  game_dates <- html_schedule_tbl %>% 
+    html_element("tbody") %>% 
+    html_elements("th[data-stat=\"date_game\"]") %>% 
+    html_element("a") %>% 
+    html_text2() %>% 
+    lubridate::mdy()
+  
+  game_start_times <- html_schedule_tbl %>% 
+    html_element("tbody") %>% 
+    html_elements("td[data-stat=\"game_start_time\"]") %>% 
+    html_text2() %>% 
+    paste0("m")
+  
+  game_home_teams <- html_schedule_tbl %>% 
+    html_element("tbody") %>% 
+    html_elements("td[data-stat=\"home_team_name\"]") %>% 
+    html_attr("csk") %>% 
+    str_sub(start = 1, end = 3)
+  
+  game_home_pts <- html_schedule_tbl %>% 
+    html_element("tbody") %>% 
+    html_elements("td[data-stat=\"home_pts\"]") %>% 
+    html_text2()
+  
+  game_visit_teams <- html_schedule_tbl %>% 
+    html_element("tbody") %>% 
+    html_elements("td[data-stat=\"visitor_team_name\"]") %>% 
+    html_attr("csk") %>% 
+    str_sub(start = 1, end = 3)
+  
+  game_visit_pts <- html_schedule_tbl %>% 
+    html_element("tbody") %>% 
+    html_elements("td[data-stat=\"visitor_pts\"]") %>% 
+    html_text2()
+
+  schedule <- tibble(
+    Date = game_dates,
+    Start = game_start_times,
+    HomeTm = game_home_teams,
+    HomePTS = game_home_pts,
+    VisitTm = game_visit_teams,
+    VisitPTS = game_visit_pts
+  ) %>% 
+    mutate(DateTime = map2_chr(Date, Start, paste), .before = Date) %>% 
+    mutate(DateTime = lubridate::ymd_hm(DateTime)) %>% 
+    mutate(BBRef_Game_ID = map2_chr(
+      Date, HomeTm, ~ format(.x, "%Y%m%d") %>% paste(.y, sep = "0")
+    ), .before = DateTime)
+  
+}
+
+game_metadata <- player_season_stats %>% 
+  filter(Season >= min_Season) %>% 
+  pull(Season) %>% 
+  unique() %>% 
+  map_dfr(get_game_metadata)
+
+file_path <- data_dir %>% paste("game-metadata.csv", sep = "/")
+game_metadata %>% write_csv(file_path)
+
+```
+
+```{r load-game-metadata, eval = TRUE}
+game_metadata <- data_dir %>% 
+  paste("game-metadata.csv", sep = "/") %>% 
+  read_csv()
+```
+
+```{r display-game-metadata, eval = TRUE, message = TRUE}
+game_metadata
+```
+
+### Getting the Twitter Data
+The Twitter-Dataset contains all Tweets related to the players we want to inspect in our analysis for their on-court performance and this part contains the whole pipeline of extracting these relevant tweets. But before we can exploit the API, some pre-work has to be done.
+First, we set up the main directory for our data to be created and the four datasets we previously created from the NBAStats source get loaded. In the next step and before we could start with the extraction of relevant tweets for our NBA players, we had to narrow down the number of players to be considered by our pipeline. The data sets above were created over 227 players. As the process of collecting tweets for such a number of individuals would be a huge overload, we decided to pick those top players, which are most relevant for us, following some criteria we set up in the following.
+
+```{r read_nba_data, eval = TRUE}
+player_metadata <- paste(data_dir,"player-metadata.csv", sep ="/") %>% read_csv()
+player_game_stats <- paste(data_dir,"player-game-stats.csv", sep ="/") %>% read_csv()
+game_metadata <- paste(data_dir,"game-metadata.csv", sep ="/") %>% read_csv()
+player_season_stats <- paste(data_dir,"player-season-stats.csv", sep ="/") %>% read_csv()
+```
+
+#### Players who played actively for the same team
+First of all we picked those players, which continuously played in the regular seasons 2016/17 - 2018/19. We didn't consider the playoffs here, as many players didn't get into the playoffs with their teams but still played a full regular season and therefore are provide enough interesting play-data for our analysis. Furthermore, we only wanted those players in our data set, which stayed at their respective team for the whole time of observation. The idea behind this was to eliminate team switches as possible factors that influence the player's performance aside those we want to observe. Additionally we wanted only those players who had on-court time in at least 80% of the games during their regular season.
+
+#### Players whose BPM varied by a standard deviation of at least 8
+As third parameter we inspected the variable "Box Plus/Minus" (BPM) in the player_game_stats data set, which is a score-based performance indicator that "estimates a basketball player's contribution to the team when that player is on the court. [...] BPM uses a player's box score information, position, and the team's overall performance to estimate the player's contribution in points above league average per 100 possessions played."[insert reference: https://www.basketball-reference.com/about/bpm2.html]
+With this estimate, we wanted to extract those players, whose performance is relatively unstable in comparison to their colleagues by computing the standard deviation of performance for each player and storing them from the highest deviation in descending order. on this data set we applied a cutoff value to get only those players, whose standard deviation was higher or equal to 8.
+
+#### Players with at least 1000 followers
+The last parameter we wanted to include into our selection concerned about the players who have a minimal follower count of 1000 users on Twitter. For this we ...!!!
+
+```{r select_relevant_players, eval = TRUE}
+relevant_players <- player_season_stats %>% 
+  
+  # Players who played actively (>= 80% of games) for the same team between 2016-2019 (3 seasons)
+  filter(Season %in% c("2016-17", "2017-18", "2018-19")) %>% 
+  filter(SeasonType == "Regular Season") %>% 
+  group_by(BBRef_Player_ID) %>% 
+  filter(n() == 3) %>% 
+  summarise(
+    team_cnt = length(unique(Team)),
+    game_cnt = sum(G)
+  ) %>% 
+  filter(team_cnt == 1) %>% 
+  filter(game_cnt >= 0.8 * 82 * 3) %>% 
+  select(BBRef_Player_ID) %>% 
+  
+  # Players whose BPM varied by a standard deviation of at least 8
+  inner_join(player_game_stats) %>% 
+  group_by(BBRef_Player_ID) %>% 
+  summarise(sd_BPM = sd(BPM, na.rm = TRUE)) %>% 
+  filter(sd_BPM >= 8) %>% 
+  select(BBRef_Player_ID) %>% 
+  
+  # Players with at least 1000 followers
+  inner_join(player_metadata) %>% 
+  pmap_dfr(function(...){
+    relevant_player <- tibble(...)
+    twitter_meta <- relevant_player$Twitter %>% 
+      lookup_users(token = twitter_token) %>% 
+      select(c("screen_name", "followers_count"))
+    inner_join(relevant_player, twitter_meta, by = c("Twitter" = "screen_name"))
+  }) %>% filter(followers_count >= 1000) %>% 
+  select(player_metadata %>% names())
+```
+
+#### Merging the parameters
+Finally we merged the cut off standard deviation values of the players with their respective twitter-account data, including the count of followers, the count of posted statuses, the count of accounts indicated as favourites and the player's screen name.Now the last step was to create a final set of players we wanted to consider in our analysis by merging the two data sets created into one and picking the top intersecting players.
+
+```{r display_relevant_players, eval = TRUE, message = TRUE}
+relevant_players
+```
+
+
+```{r select_relevant_player_stats, eval = TRUE}
+relevant_player_stats <- relevant_players %>% 
+  inner_join(player_game_stats) %>% 
+  filter(! is.na(MP)) %>% 
+  inner_join(game_metadata) %>% 
+  filter(Season %in% c("2017-18", "2018-19"))
+```
+
+
+```{r display_relevant_player_stats, eval = TRUE, message = TRUE}
+relevant_player_stats
+```
+
+### Extracting the relevant tweets
+With the given data we were now able to extract exactly those tweets we needed for our analysis. To do so, we chose to use the get_all_tweets function from the academictwitteR packagage.
+
+```{r extract_and_save_tweets}
+time_window <- 48
+tweet_cols <- c("BBRef_Player_ID", "BBRef_Game_ID", "id", "text", "created_at", "retweet_count", "reply_count", "like_count", "quote_count")
+alrdy_proc_plyrs <- list.files(tweet_dir) %>% map_chr(~ str_remove(.x, "\\.csv$"))
+
+
+relevant_player_stats %>% 
+  filter(! Twitter %in% c(alrdy_proc_plyrs)) %>% 
+  mutate(EndTweet = DateTime - lubridate::dminutes(45)) %>% 
+  mutate(StartTweet = EndTweet - lubridate::dhours(time_window)) %>% 
+  
+  # Save tweets player-wise
+  group_by(BBRef_Player_ID) %>% 
+  group_walk(~ {
+    tweets <- .x %>% pmap_dfr(function(...) {
+      player_game_data <- tibble(...)
+      
+      start_tweets = player_game_data$StartTweet %>% iso8601() %>% paste0("Z")
+      end_tweets = player_game_data$EndTweet %>% iso8601() %>% paste0("Z")
+      
+      twts <- tibble()
+      
+      tryCatch({
+          twts <- get_all_tweets(
+            query = player_game_data$Twitter,
+            start_tweets = start_tweets,
+            end_tweets = end_tweets,
+            is_retweet = FALSE,
+            lang = "en",
+            bearer_token = twitter_bearer_token
+          ) %>% 
+            mutate(BBRef_Player_ID = player_game_data$BBRef_Player_ID) %>% 
+            mutate(BBRef_Game_ID = player_game_data$BBRef_Game_ID)
+        }, error = function(e) {
+          # For Status Code 503
+          print("Error loading tweets for the following game: ")
+          print(player_game_data %>% select(c(Twitter, BBRef_Game_ID, DateTime, StartTweet, EndTweet)))
+        }, finally = {
+          return(twts)
+        }
+      )
+      
+    }) %>% 
+      mutate(retweet_count = public_metrics$retweet_count) %>% 
+      mutate(reply_count = public_metrics$reply_count) %>% 
+      mutate(like_count = public_metrics$like_count) %>% 
+      mutate(quote_count = public_metrics$quote_count) %>% 
+      select(tweet_cols)
+    
+    file_name <- .x$Twitter %>% unique() %>% paste0(".csv")
+    file_path <- tweet_dir %>% paste(file_name, sep = "/")
+    
+    tweets %>% write_csv(file_path)
+  })
+```
+
+
+```{r load_tweets, eval = TRUE}
+tweets <- list.files(tweet_dir, full.names = TRUE) %>% 
+  map_dfr(read_csv)
+
+tweets <- player_metadata %>% inner_join(tweets)
+```
+
+
+```{r display_tweets, eval = TRUE, message = TRUE}
+tweets
+```
+
+# Preprocessing the Twitter Data
+
+```{r load_tweets, eval = TRUE}
+tweets <- list.files(tweets_dir, full.names = TRUE) %>% 
+  map_dfr(read_csv) %>% 
+  select(c(id, text)) %>% 
+  
+  # Eliminate duplicate tweets (addressed to multiple players) to accelerate processing
+  unique() 
+```
+
+
+```{r preprocess_tweets}
+prep_tweets <- tweets %>% 
+  mutate(prep_text = imap_chr(tweets$text, ~{
+    
+    print(.y %>% paste(nrow(tweets), sep = "/"))
+      
+    # Replace words which letters are written with spaces in between for emphasis by their semantic equivalence (e.g. "B O M B" -> "BOMB")
+    txt <- replace_kern(.x)
+    
+    # Replace emoji by description
+    txt <- replace_emoji(txt)
+    
+    # Replace non-ascii characters by semantic equivalent
+    txt <- replace_non_ascii(txt)
+    
+    # Replace contractions by their multi-word forms (e.g. "I'll" -> "I will")
+    txt <- replace_contraction(txt)
+    
+    # Text to lowercase 
+    txt <- str_to_lower(txt)
+    
+    # Remove Twitter URL's, mentions and hashtags
+    txt <- replace_url(txt) 
+    txt <- replace_tag(txt)
+    txt <- replace_hash(txt)
+    
+    # Replace html symbols by semantic equivalent symbol (e.g. "&amp;" -> "and")
+    txt <- replace_html(txt)
+    txt <- replace_symbol(txt)
+    
+    # Replace word lenghenings to emphasize or alter word meanings by their semantic equivalence (e.g. "I said heyyy!" -> "I said hey sexy!")
+    txt <- replace_word_elongation(txt, impart.meaning = TRUE) 
+    
+    # Replace internet slang by their semantic equivalence (e.g. "YOLO" -> "You only live once")
+    txt <- replace_internet_slang(txt)
+    
+    # Replace white space characters by single white space and trim
+    txt <- replace_white(txt)
+    txt <- str_trim(txt)
+    
+  }))
+  
+```
+
+
+```{r extract_emojis}
+emoji_sentiment_lexicon <- lexicon::hash_sentiment_emojis %>% tibble()
+emoji_regex <- emoji_sentiment_lexicon$x %>% paste(collapse = "|")
+
+prep_tweets <- prep_tweets %>% 
+  mutate(emojis = map_chr(tweets$text, ~ {
+    .x %>% 
+      replace_emoji_identifier() %>% 
+      str_extract_all(emoji_regex) %>% 
+      unlist() %>% 
+      paste(collapse = " ")
+  }))
+```
+
+
+```{r store_preprocessed_tweets}
+file_path <- data_dir %>% paste("prep-tweets.csv", sep = "/")
+
+prep_tweets %>% 
+  select(c(id, prep_text, emojis)) %>% 
+  write_csv(file_path)
+```
+
+
+```{r load_preprocessed_tweets, eval = TRUE}
+prep_tweets <-data_dir %>% 
+  paste("prep-tweets.csv", sep = "/") %>% 
+  read_csv()
+```
+
+The following table gives an idea about the performed preprocessing steps: 
+
+```{r display_preprocessed_tweets, eval = TRUE, message = TRUE}
+tweets %>% 
+  inner_join(prep_tweets) %>% 
+  select(c(text, prep_text, emojis)) %>% 
+  unique()
+```
+
+# Sentiment Extraction
+```{r load_tweets, eval = TRUE}
+tweets <- list.files(tweets_dir, full.names = TRUE) %>% 
+  map_dfr(read_csv)
+
+prep_tweets <- data_dir %>% paste("prep-tweets.csv", sep = "/") %>% read_csv()
+
+# tweets %>% inner_join(prep_tweets) %>% select(c(text, prep_text, emojis))
+```
+
+
+```{r bing_sentiments}
+bing_sentiments <- prep_tweets %>% 
+  mutate(sentences = get_sentences(prep_text)) %$%
+  sentiment_by(sentences, list(id), polarity_dt = lexicon::hash_sentiment_huliu) %>% 
+  tibble()
+
+file_path <- sentiments_dir %>% paste("bing.csv", sep = "/")
+bing_sentiments %>% write_csv(file_path)
+
+bing_sentiments
+```
+
+
+```{r syuzhet_sentiments}
+syuzhet_sentiments <- prep_tweets %>% 
+  mutate(sentences = get_sentences(prep_text)) %$%
+  sentiment_by(sentences, list(id), polarity_dt = lexicon::hash_sentiment_jockers) %>% 
+  tibble()
+
+file_path <- sentiments_dir %>% paste("syuzhet.csv", sep = "/")
+syuzhet_sentiments %>% write_csv(file_path)
+
+syuzhet_sentiments
+```
+
+
+```{r jockers_rinker_sentiments}
+jockers_rinker_sentiments <- prep_tweets %>%
+  mutate(sentences = get_sentences(prep_text)) %$%  
+  sentiment_by(sentences, list(id)) %>% 
+  tibble()
+
+file_path <- sentiments_dir %>% paste("jockers-rinker.csv", sep = "/", polarity_dt = lexicon::hash_sentiment_jockers_rinker)
+jockers_rinker_sentiments %>% write_csv(file_path)
+
+jockers_rinker_sentiments
+```
+
+
+```{r nrc_sentients}
+nrc_sentiments <- prep_tweets %>% 
+  mutate(sentences = get_sentences(prep_text)) %$%
+  sentiment_by(sentences, list(id), polarity_dt = lexicon::hash_sentiment_nrc) %>% 
+  tibble()
+
+file_path <- sentiments_dir %>% paste("nrc.csv", sep = "/")
+nrc_sentiments %>% write_csv(file_path)
+
+nrc_sentiments
+```
+
+
+```{r afinn_sentiments}
+# Note: download for "afinn" has to be confirmed
+hash_sentiment_afinn <- tidytext::get_sentiments("afinn") %>% 
+  rename(c(x = word, y = value)) %>% 
+  as_key() # convert tibble to data table for sentimentr
+
+afinn_sentiments <- prep_tweets %>% 
+  mutate(sentences = get_sentences(prep_text)) %$%
+  sentiment_by(sentences, list(id), polarity_dt = hash_sentiment_afinn) %>% 
+  tibble()
+
+file_path <- sentiments_dir %>% paste("afinn.csv", sep = "/")
+afinn_sentiments %>% write_csv(file_path)
+
+afinn_sentiments
+```
+
+
+```{r novak_emoji_sentiments}
+novak_emoji_sentiments <- prep_tweets %>%
+  filter(emojis != "") %>% 
+  filter(! is.na(emojis)) %>%
+  mutate(emojis = replace_emoji_identifier(emojis)) %>% 
+  mutate(sentences = get_sentences(emojis)) %$%
+  sentiment_by(sentences, list(id), polarity_dt = lexicon::hash_sentiment_emojis) %>% 
+  tibble() 
+
+file_path <- sentiments_dir %>% paste("novak-emoji.csv", sep = "/")
+novak_emoji_sentiments %>% write_csv(file_path)
+
+novak_emoji_sentiments 
+```
+
+
+```{r load_sentiments, eval = TRUE}
+bing <- sentiments_dir %>% 
+  paste("bing.csv", sep = "/") %>% 
+  read_csv() %>% 
+  select(c(id, word_count, ave_sentiment)) %>% 
+  rename(bing = ave_sentiment)
+
+syuzhet <- sentiments_dir %>% 
+  paste("syuzhet.csv", sep = "/") %>% 
+  read_csv() %>% 
+  select(c(id, ave_sentiment)) %>% 
+  rename(syuzhet = ave_sentiment)
+
+jockers_rinker <- sentiments_dir %>% 
+  paste("jockers-rinker.csv", sep = "/") %>% 
+  read_csv() %>% 
+  select(c(id, ave_sentiment)) %>% 
+  rename(jockers_rinker = ave_sentiment)
+
+afinn <- sentiments_dir %>% 
+  paste("afinn.csv", sep = "/") %>% 
+  read_csv() %>% 
+  select(c(id, ave_sentiment)) %>% 
+  rename(afinn = ave_sentiment)
+
+nrc <- sentiments_dir %>% 
+  paste("nrc.csv", sep = "/") %>% 
+  read_csv() %>% 
+  select(c(id, ave_sentiment)) %>% 
+  rename(nrc = ave_sentiment)
+
+novak_emoji <- sentiments_dir %>% 
+  paste("novak-emoji.csv", sep = "/") %>% 
+  read_csv() %>% 
+  select(c(id, ave_sentiment)) %>% 
+  rename(novak_emoji = ave_sentiment)
+
+sentiments <- tweets %>% 
+  inner_join(prep_tweets) %>% 
+  select(c(id, text, prep_text)) %>% 
+  inner_join(bing) %>%
+  inner_join(syuzhet) %>% 
+  inner_join(jockers_rinker) %>% 
+  inner_join(nrc) %>% 
+  inner_join(afinn) %>% 
+  left_join(novak_emoji)
+```
+
+The following table gives a glimpse about the computed sentiments: 
+
+```{r display_sentiments, eval = TRUE, message = TRUE}
+sentiments %>% 
+  select(- c(id, text))
+```
