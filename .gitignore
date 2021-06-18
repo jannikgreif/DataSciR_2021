@@ -44,7 +44,6 @@ vignettes/*.pdf
 /*_files/
 
 # Rmd Output files
-*.html
 *.pdf
 
 # Others
