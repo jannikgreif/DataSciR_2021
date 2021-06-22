@@ -1,0 +1,207 @@
+---
+title: "analysis-correlation"
+author: "Frank Dreyer"
+date: "19 6 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+
+knitr::opts_chunk$set(
+  echo = TRUE, 
+  eval = FALSE, 
+  message = FALSE,
+  warning = FALSE
+)
+
+data_dir <- "../data"
+tweets_dir <- data_dir %>% paste("tweets", sep = "/")
+sentiments_dir <- data_dir %>% paste("sentiments", sep = "/")
+```
+
+```{r load_nba_stats, eval = TRUE}
+player_metadata <- paste(data_dir,"player-metadata.csv", sep ="/") %>% read_csv()
+player_game_stats <- paste(data_dir,"player-game-stats.csv", sep ="/") %>% read_csv()
+game_metadata <- paste(data_dir,"game-metadata.csv", sep ="/") %>% read_csv()
+player_season_stats <- paste(data_dir,"player-season-stats.csv", sep ="/") %>% read_csv()
+```
+
+
+```{r load_tweets, eval = TRUE}
+tweets <- list.files(tweets_dir, full.names = TRUE) %>% 
+  map_dfr(read_csv)
+
+prep_tweets <- data_dir %>% 
+  paste("prep-tweets.csv", sep = "/") %>% 
+  read_csv()
+```
+
+
+```{r load_sentiments, eval = TRUE}
+bing <- sentiments_dir %>% 
+  paste("bing.csv", sep = "/") %>% 
+  read_csv() 
+
+syuzhet <- sentiments_dir %>% 
+  paste("syuzhet.csv", sep = "/") %>% 
+  read_csv() 
+
+jockers_rinker <- sentiments_dir %>% 
+  paste("jockers-rinker.csv", sep = "/") %>% 
+  read_csv() 
+
+afinn <- sentiments_dir %>% 
+  paste("afinn.csv", sep = "/") %>% 
+  read_csv() 
+
+nrc <- sentiments_dir %>% 
+  paste("nrc.csv", sep = "/") %>% 
+  read_csv() 
+
+novak_emoji <- sentiments_dir %>% 
+  paste("novak-emoji.csv", sep = "/") %>% 
+  read_csv()
+
+sentiments <- (bing %>% select(id, ave_sentiment) %>% rename(bing = ave_sentiment)) %>%
+  inner_join(syuzhet %>% select(id, ave_sentiment) %>% rename(syuzhet = ave_sentiment)) %>% 
+  inner_join(jockers_rinker %>% select(id, ave_sentiment) %>% rename(jockers_rinker = ave_sentiment)) %>% 
+  inner_join(nrc %>% select(id, ave_sentiment) %>% rename(nrc = ave_sentiment)) %>% 
+  inner_join(afinn %>% select(id, ave_sentiment) %>% rename(afinn = ave_sentiment)) %>% 
+  left_join(novak_emoji %>% select(id, ave_sentiment) %>% rename(novak_emoji = ave_sentiment)) %>% 
+  
+  # Classify sentiments as "negative" (score < 0) or "positive" otherwise 
+  mutate_at(vars(-id), list(binary = ~ if_else(. < 0, "negative", "positive")))
+```
+
+
+```{r filter_tweets_24h_before_games, eval = TRUE}
+tweets_with_game_timediff <- player_game_stats %>%
+  inner_join(game_metadata) %>% 
+  inner_join(tweets) %>% 
+  mutate(h_timediff_game = as.double(DateTime - created_at, units = "hours")) %>% 
+  select(c(names(tweets), h_timediff_game)) 
+
+tweets_24h_before_games <- tweets_with_game_timediff %>%
+  filter(h_timediff_game <= 24)
+```
+
+
+```{r compute_sentiments_24h_before_games, eval = TRUE}
+sentiments_24h_before_games <- tweets_24h_before_games %>% 
+  inner_join(sentiments) %>% 
+  group_by(BBRef_Player_ID, BBRef_Game_ID) %>% 
+  summarise(
+    bing = mean(bing),
+    syuzhet = mean(syuzhet),
+    jockers_rinker = mean(jockers_rinker),
+    nrc = mean(nrc), 
+    afinn = mean(afinn),
+    novak_emoji = mean(novak_emoji, na.rm = TRUE),
+    tweet_count = n()
+  ) 
+
+sentiments_24h_before_games %>% filter(BBRef_Player_ID == "f/fournev01") %>% 
+  select(c(bing, syuzhet, jockers_rinker, afinn, tweet_count))
+```
+
+
+```{r sentiments_BPM_plotting, eval = TRUE, message = TRUE, fig.width = 10, fig.height = 30}
+player_metadata %>% 
+  inner_join(player_game_stats) %>% 
+  inner_join(sentiments_24h_before_games) %>% 
+  mutate(afinn_normalized = afinn / 5) %>% 
+  pivot_longer(
+    cols = c(jockers_rinker, nrc, afinn_normalized, novak_emoji), 
+    names_to = "sentiment_lexicon", 
+    values_to = "sentiment_score"
+  ) %>% 
+  select(Player, sentiment_lexicon, sentiment_score, BPM, tweet_count) %>% 
+  ggplot(mapping = aes(x = sentiment_score, y = BPM)) + 
+    geom_point(alpha = 0.2) + 
+    geom_smooth(method = "lm", se = FALSE, color = "red") + 
+    facet_grid(Player ~ sentiment_lexicon)
+```
+
+
+```{r pearson_cor, eval = TRUE, message = TRUE}
+player_metadata %>% 
+  inner_join(player_game_stats) %>% 
+  inner_join(sentiments_24h_before_games) %>% 
+  group_by(Player) %>% 
+  group_modify(~ {
+    tibble(
+      corr_jockers_rinker_BPM = cor(.x$jockers_rinker, .x$BPM, use = "complete.obs"),
+      corr_nrc_BPM = cor(.x$nrc, .x$BPM, use = "complete.obs"),
+      corr_afinn_BPM = cor(.x$afinn, .x$BPM, use = "complete.obs"),
+      corr_novak_emoji_BPM = cor(.x$novak_emoji, .x$BPM, use = "complete.obs")
+    )
+  })
+```
+
+
+Observation: On extremely positive sentiment values (outliers) the player had birthday. 
+
+```{r birthday_outliers, eval = TRUE, message = TRUE}
+nrc_max_player_games <- sentiments_24h_before_games %>% 
+  group_by(BBRef_Player_ID) %>% 
+  top_n(1, nrc) %>% 
+  select(c(BBRef_Player_ID, BBRef_Game_ID))
+
+nrc_max_player_games %>% 
+  inner_join(player_metadata) %>% 
+  inner_join(tweets) %>% 
+  filter(Player == "Draymond Green") %>% 
+  select(c(Player, created_at, text))
+
+nrc_max_player_games %>% 
+  inner_join(player_metadata) %>% 
+  inner_join(tweets) %>% 
+  filter(Player == "Russell Westbrook") %>% 
+  select(c(Player, created_at, text))
+
+nrc_max_player_games %>% 
+  inner_join(player_metadata) %>% 
+  inner_join(tweets) %>% 
+  filter(Player == "Giannis Antetokounmpo") %>% 
+  select(c(Player, created_at, text))
+
+nrc_max_player_games %>% 
+  inner_join(player_metadata) %>% 
+  inner_join(tweets) %>% 
+  filter(Player == "Klay Thompson") %>% 
+  select(c(Player, created_at, text))
+```
+
+
+```{r season_18_19_trend_BPM_vs_jockers_rinker, eval = TRUE, message = TRUE, fig.width = 10, fig.height = 80}
+scaling_coef <- 60
+
+player_metadata %>% 
+  inner_join(player_game_stats) %>% 
+  inner_join(sentiments_24h_before_games) %>% 
+  filter(SeasonType == "Regular Season") %>% 
+  filter(Season %in% c("2018-19")) %>% 
+  ggplot(mapping = aes(x = Date)) +
+  
+    geom_smooth(mapping = aes(y = BPM), se = FALSE, color = "blue") + 
+    geom_line(mapping = aes(y = BPM), color = "blue", alpha = 0.2) + 
+  
+    geom_smooth(mapping = aes(y = jockers_rinker * scaling_coef), se = FALSE, color = "red") +
+    geom_line(mapping = aes(y = jockers_rinker * scaling_coef), color = "red", alpha = 0.2) + 
+  
+    facet_wrap(~ Player, ncol = 1) +
+  
+    scale_y_continuous( 
+      name = "BPM",
+      sec.axis = sec_axis(~./scaling_coef, name = "Jockers/Rinker")
+    ) + 
+    coord_cartesian(ylim = c(-10,20)) + 
+    theme_minimal() + 
+    theme(
+      axis.title.y = element_text(color = "blue"),
+      axis.title.y.right = element_text(color = "red")
+    )
+```
+
+
