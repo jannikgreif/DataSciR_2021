@@ -134,37 +134,43 @@ bing <- sentiments_dir %>%
   paste("bing.csv", sep = "/") %>% 
   read_csv() %>% 
   select(c(id, word_count, ave_sentiment)) %>% 
-  rename(bing = ave_sentiment)
+  rename(bing = ave_sentiment) %>%
+  mutate(binary_sentiment = if_else(bing < 0.0, "negative", "positive"))
 
 syuzhet <- sentiments_dir %>% 
   paste("syuzhet.csv", sep = "/") %>% 
   read_csv() %>% 
   select(c(id, ave_sentiment)) %>% 
-  rename(syuzhet = ave_sentiment)
+  rename(syuzhet = ave_sentiment) %>%
+  mutate(binary_sentiment = if_else(syuzhet < 0.0, "negative", "positive"))
 
 jockers_rinker <- sentiments_dir %>% 
   paste("jockers-rinker.csv", sep = "/") %>% 
   read_csv() %>% 
   select(c(id, ave_sentiment)) %>% 
-  rename(jockers_rinker = ave_sentiment)
+  rename(jockers_rinker = ave_sentiment) %>%
+  mutate(binary_sentiment = if_else(jockers_rinker < 0.0, "negative", "positive"))
 
 afinn <- sentiments_dir %>% 
   paste("afinn.csv", sep = "/") %>% 
   read_csv() %>% 
   select(c(id, ave_sentiment)) %>% 
-  rename(afinn = ave_sentiment)
+  rename(afinn = ave_sentiment) %>%
+  mutate(binary_sentiment = if_else(afinn < 0.0, "negative", "positive"))
 
 nrc <- sentiments_dir %>% 
   paste("nrc.csv", sep = "/") %>% 
   read_csv() %>% 
   select(c(id, ave_sentiment)) %>% 
-  rename(nrc = ave_sentiment)
+  rename(nrc = ave_sentiment) %>%
+  mutate(binary_sentiment = if_else(nrc < 0.0, "negative", "positive"))
 
 novak_emoji <- sentiments_dir %>% 
   paste("novak-emoji.csv", sep = "/") %>% 
   read_csv() %>% 
   select(c(id, ave_sentiment)) %>% 
-  rename(novak_emoji = ave_sentiment)
+  rename(novak_emoji = ave_sentiment) %>%
+  mutate(binary_sentiment = if_else(novak_emoji < 0.0, "negative", "positive"))
 
 sentiments <- tweets %>% 
   inner_join(prep_tweets) %>% 
