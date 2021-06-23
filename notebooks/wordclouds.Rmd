@@ -16,6 +16,7 @@ library("tm")
 library("SnowballC")
 library("wordcloud")
 library("RColorBrewer")
+library("tidyverse")
 ```
 
 ## Creating Wordclouds
@@ -25,11 +26,24 @@ following the tutorial on [sthda.com](http://www.sthda.com/english/wiki/text-min
 ```{r load the text}
 #text <- list.files(path = "C:/Users/Kolja/Desktop/Data Science with R/Teamprojekt/Git2/DataSciR_2021/data/tweets/", pattern = "*.csv")
 #myfiles = lapply(text, read.delim)
-data <- read.csv("C:/Users/Kolja/Desktop/Data Science with R/Teamprojekt/Git2/DataSciR_2021/data/tweets/StephenCurry30.csv")
-data <- data$text
-glimpse(data)
-docs <- Corpus(VectorSource(data))
-inspect(docs)
+data_dir <- "C:/Users/Kolja/Desktop/Data Science with R/Teamprojekt/Git2/DataSciR_2021/data"
+tweets_dir <- data_dir %>% paste("tweets", sep = "/")
+
+prep_tweets <- read.csv("C:/Users/Kolja/Desktop/Data Science with R/Teamprojekt/Git2/DataSciR_2021/data/prep-tweets.csv")
+tweets <- list.files(tweets_dir, full.names = TRUE) %>% 
+  map_dfr(read_csv) %>%
+  inner_join(prep_tweets) %>%
+  # select the player and date you want to create a wordmap of
+  filter(BBRef_Player_ID == "a/antetgi01") %>%
+  separate(created_at, c("date", "time"), sep = " ") %>%
+  filter(date >= as.Date("2018-12-06") & date <= as.Date("2018-12-07"))
+
+view(tweets)  
+# we only need the plain text of the data
+tweets <- tweets$text
+
+# transform the tibble into a vector of documents
+docs <- Corpus(VectorSource(tweets))
 
 toSpace <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))
 docs <- tm_map(docs, toSpace, "/")
@@ -38,39 +52,47 @@ docs <- tm_map(docs, toSpace, "\\|")
 
 # Convert the text to lower case
 docs <- tm_map(docs, content_transformer(tolower))
+#
+docs <- tm_map(docs, PlainTextDocument)
 # Remove numbers
 docs <- tm_map(docs, removeNumbers)
 # Remove english common stopwords
 docs <- tm_map(docs, removeWords, stopwords("english"))
 # Remove your own stop word
 # specify your stopwords as a character vector
-docs <- tm_map(docs, removeWords, c("https", "bemore", "pts", "tco", "jamal", "murray")) 
+docs <- tm_map(docs, removeWords, c("https", "pts", "tco")) 
 # Remove punctuations
 docs <- tm_map(docs, removePunctuation)
 # Eliminate extra white spaces
 docs <- tm_map(docs, stripWhitespace)
-# Text stemming
-# docs <- tm_map(docs, stemDocument)
 
-dtm <- TermDocumentMatrix(docs)
-m <- as.matrix(dtm)
-v <- sort(rowSums(m),decreasing=TRUE)
-d <- data.frame(word = names(v),freq=v)
-head(d, 10)
+#split vector into two chunks (neccessary as the following function can't handle too large vectors)
+chunk_number <- 2
+docs_split <- split(docs, cut(seq_along(docs), chunk_number, labels = FALSE))
 
+docs1 <- docs_split$`1`
+docs2 <- docs_split$`2`
+
+# create a term.document-matrix for each chunk and count the unique words
+dtm_1 <- TermDocumentMatrix(docs1)
+m_1 <- as.matrix(dtm_1)
+v_1 <- sort(rowSums(m_1),decreasing=TRUE)
+d_1 <- data.frame(word = names(v_1),freq=v_1)
+
+dtm_2 <- TermDocumentMatrix(docs2)
+m_2 <- as.matrix(dtm_2)
+v_2 <- sort(rowSums(m_2),decreasing=TRUE)
+d_2 <- data.frame(word = names(v_2),freq=v_2)
+
+#merge the chunks together again
+dtm <- append(dtm_1, dtm_2)
+m <- append(m_1, m_2)
+v <- append(v_1, v_2)
+d <- append(d_1, d_2)
+
+#create a wordmap on the given data
 set.seed(1234)
 wordcloud(words = d$word, freq = d$freq, min.freq = 1,
           max.words=200, random.order=FALSE, rot.per=0.35, 
-          colors=brewer.pal(8, "Dark2"))
+          colors=brewer.pal(9, "Set1"))
 ```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
-7
