@@ -72,10 +72,10 @@ syuzhet_sentiments
 ```{r jockers_rinker_sentiments}
 jockers_rinker_sentiments <- prep_tweets %>%
   mutate(sentences = get_sentences(prep_text)) %$%  
-  sentiment_by(sentences, list(id)) %>% 
+  sentiment_by(sentences, list(id), polarity_dt = lexicon::hash_sentiment_jockers_rinker)) %>% 
   tibble()
 
-file_path <- sentiments_dir %>% paste("jockers-rinker.csv", sep = "/", polarity_dt = lexicon::hash_sentiment_jockers_rinker)
+file_path <- sentiments_dir %>% paste("jockers-rinker.csv", sep = "/")
 jockers_rinker_sentiments %>% write_csv(file_path)
 
 jockers_rinker_sentiments
