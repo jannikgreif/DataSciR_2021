@@ -313,8 +313,8 @@ get_variable_importance <- function(x){
     geom_bar(stat= "identity") +
     coord_flip() +
     theme(legend.position="none") +
-    xlab("Variable") +
-    ylab("Importance") +
+    xlab("feature") +
+    ylab("importance") +
     scale_fill_manual(values = c("#595959", "#DB2C2C")) 
 } 
 
@@ -322,3 +322,9 @@ get_variable_importance(model)
 get_variable_importance(model_with_sentiment)
 get_variable_importance(model_only_sentiment)
 ```
+Looking at the variable importance scores for the model including sentiments it can be observed that the syuzhet and jockers_rinker sentiment scores rank second and third. The (permutation) importance score is calculated by (1) measuring a basline RSQ , (2) permute the values of one feature and measure the RSQ. The importance score is the difference between the basline and the drop in overal RSQ caused by the permutation.
+The plot indicates a high influence of sentiment scores. But since the model has a low RSQ, this should be perceived carefully. 
+To further understand the influence of sentiment scores, a new model should be deployed with the goal to increase the RSQ. 
+
+
+
