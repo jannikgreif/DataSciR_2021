@@ -7,6 +7,9 @@ output: html_document
 
 ```{r setup, include=FALSE}
 library(tidyverse)
+library(tidytext)
+library(ggwordcloud)
+library(stringr)
 library(ggpubr)
 
 knitr::opts_chunk$set(
@@ -58,6 +61,56 @@ sentiments <- sentiment_names %>%
       mutate(sentiment_lexicon = sentiment_name)
       
   })
+```
+
+## Comparability of the Sentiment Lexicons
+
+In the beginning we wanted to assess if the sentiment scores the different sentiment lexicons provided for tweets were actually comparable. For that purpose we computed the Spearman rank correlation coefficient between tweet sentiment scores provided by each pair of sentiment lexicons to assess whether the ranking of the tweets according to one sentiment lexicon agrees with the ranking of the tweets according to another sentiment lexicon. 
+
+```{r compute_sentiment_consensus_spearman, eval = TRUE}
+sentiment_lexicons <- sentiments$sentiment_lexicon %>% unique()
+
+# Create cross product of sentiment_lexicon with itself
+sentiment_lexicons_a <- sentiment_lexicons %>% 
+  rep(each = length(sentiment_lexicons))
+sentiment_lexicons_b <- sentiment_lexicons %>% 
+  rep(times = length(sentiment_lexicons))
+
+# For each pair of sentiment lexicons compute Kendall rank correlation coefficient
+sentiment_lexicon_consensus <- map2_dfr(sentiment_lexicons_a, sentiment_lexicons_b, ~ {
+  
+  sentiments_a <- sentiments %>% 
+    filter(sentiment_lexicon == .x) %>% 
+    mutate(ave_sentiment_a = ave_sentiment) %>% 
+    select(id, ave_sentiment_a) 
+  
+  sentiments_b <- sentiments %>% 
+    filter(sentiment_lexicon == .y) %>%
+    mutate(ave_sentiment_b = ave_sentiment) %>% 
+    select(id, ave_sentiment_b)
+  
+  inner_join(sentiments_a, sentiments_b) %>% 
+    mutate(sentiment_lexicon_a = .x) %>% 
+    mutate(sentiment_lexicon_b = .y) %>%  
+    group_by(sentiment_lexicon_a, sentiment_lexicon_b) %>% 
+    summarise(consensus = cor(ave_sentiment_a, ave_sentiment_b, method = "spearman", use = "complete.obs")) %>% 
+    ungroup()
+  
+})
+```
+
+We then plotted the results into a heatmap:
+
+```{r plot_sentiment_consensus, eval = TRUE}
+sentiment_lexicon_consensus %>% 
+  ggplot(mapping = aes(x = sentiment_lexicon_a, y = sentiment_lexicon_b, fill = consensus)) +
+    geom_tile() +
+    colorspace::scale_fill_continuous_sequential("Purples") +
+    theme_minimal() + 
+    theme(
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank()
+    )
 ```
 
 ## Computing Sentiment Aggregates
@@ -268,11 +321,57 @@ player_metadata %>%
 
 As one can see, the points of the different scatterplots appeared rather scattered and for the different sentiment lexicons and players there was neither a strong nor direclty visible (linear) relationship between the average tweet sentiment and the BPM performance indicator. Even though some of the linear regression lines suggested a correlation, the correlations themselves were rather weak or even neglectable as indicated by the respective Pearson correlation coefficients *r* that were relatively small (mostly less than 0.1). Additionally most of the *p*-values of the associated Pearson correlation coefficients were rather high which suggested that the observed strength of the correlations were not significantly different from 0 (and might have appeared due to random chance). 
 
-Due to these reasons we had to conclude that there is no evidence of a significantly strong linear correlation between the average sentiment of tweets player's receive within 24 hours before games and their performance within the games. 
+Nevertheless, there were also some counter examples where the Pearson correlation coefficient appeared rather significant. The player Jaylen Brown for example showed a positive correlation for the Afinn lexicon with a *p*-value below 0.05. However, since the correlations were rather weak, not significant and somehow contradicting for other sentiment lexicons (compare that the correlation was negative for the nrc lexicon), it is debatable if the positive correlation is generalizable for the entire population or even the single player alone. 
 
-There was however another interesting observation the scatterplots revealed, namely the prominent outliers. For almost every player there was at least one game day in which the average tweet sentiment was vastly more positive compared to other days. Additionally there were some player's with game days associated with an extremely negative average tweet sentiment in comparison to other days. To investigate these outliers more closely we created two word clouds for each player, one for the smalles average tweet sentiment the player received and one for the highest. We used the tweet sentiments created from the Jockers-Rinker lexicon for this purpose. 
+Due to these reasons we had to conclude that there is no evidence of a significantly strong linear correlation between the average sentiment of tweets players receive within 24 hours before games and their performance within the games. 
+
+There was however another interesting observation the scatterplots revealed, namely the prominent outliers. For almost every player there was at least one game day in which the average tweet sentiment was vastly more positive compared to other days. Additionally there were some players with game days associated with an extremely negative average tweet sentiment in comparison to other days. To investigate these outliers more closely we created two word clouds for each player, one for the smallest average tweet sentiment the player received and one for the highest. We used the tweet sentiments created from the Jockers-Rinker lexicon for this purpose. 
 
 [TODO] word clouds
+
+```{r plot_word_clouds_extreme_sentiments, eval = TRUE, fig.width = 10, fig.height = 35}
+extreme_neg_sentiments <- sentiment_aggregates_24h_before_games %>% 
+  filter(sentiment_lexicon == "jockers_rinker") %>% 
+  group_by(BBRef_Player_ID) %>% 
+  top_n(1, - avg_sentiment) %>% 
+  mutate(extreme_type = "Most Negative")
+
+extreme_pos_sentiments <- sentiment_aggregates_24h_before_games %>% 
+  filter(sentiment_lexicon == "jockers_rinker") %>% 
+  group_by(BBRef_Player_ID) %>% 
+  top_n(1, avg_sentiment) %>% 
+  mutate(extreme_type = "Most Positive")
+
+word_frequencies <- bind_rows(extreme_neg_sentiments, extreme_pos_sentiments) %>% 
+  inner_join(player_metadata) %>% 
+  inner_join(tweets) %>% 
+  inner_join(prep_tweets) %>% 
+  mutate(prep_text = str_remove_all(prep_text, "[:digit:]")) %>% 
+  group_by(Player, extreme_type) %>% 
+  unnest_tokens(word, prep_text) %>% 
+  anti_join(stop_words) %>%
+  group_by(Player, extreme_type, word) %>% 
+  summarise(freq = n()) 
+
+total_words <- word_frequencies %>% 
+  group_by(Player, extreme_type) %>% 
+  summarise(total = sum(freq)) 
+
+rel_word_frequencies <- word_frequencies %>% 
+  inner_join(total_words) %>% 
+  mutate(rel_freq = freq / total)
+
+rel_word_frequencies %>% 
+  arrange(desc(rel_freq)) %>% 
+  group_by(Player, extreme_type) %>% 
+  slice_head(n = 50) %>% 
+  ggplot(mapping = aes(label = word, size = rel_freq)) + 
+    geom_text_wordcloud_area() + 
+    scale_size_area(max_size = 20) + 
+    facet_grid(Player ~ extreme_type) +
+    theme_minimal()
+```
+
 
 ### Relationship between the Weighted Average 24-Hour Tweet Sentiment and the BPM Performance Indicator
 
@@ -399,50 +498,6 @@ sentiment_lexicon_consensus <- map2_dfr(sentiment_lexicons_a, sentiment_lexicons
     ungroup()
   
 })
-```
-
-
-```{r compute_sentiment_consensus_continuous, eval = FALSE}
-sentiment_lexicons <- sentiments$sentiment_lexicon %>% unique()
-
-# Create cross product of sentiment_lexicon with itself
-sentiment_lexicons_a <- sentiment_lexicons %>% 
-  rep(each = length(sentiment_lexicons))
-sentiment_lexicons_b <- sentiment_lexicons %>% 
-  rep(times = length(sentiment_lexicons))
-
-sentiment_lexicon_consensus <- map2_dfr(sentiment_lexicons_a, sentiment_lexicons_b, ~ {
-  
-  sentiments_a <- sentiments %>% 
-    filter(sentiment_lexicon == .x) %>% 
-    mutate(standardized_sentiment = scale(ave_sentiment, center = TRUE, scale = TRUE)) %>% 
-    mutate(pnorm_sentiment_a = pnorm(standardized_sentiment)) %>% 
-    select(id, pnorm_sentiment_a) 
-  
-  sentiments_b <- sentiments %>% 
-    filter(sentiment_lexicon == .y) %>%
-    mutate(standardized_sentiment = scale(ave_sentiment, center = TRUE, scale = TRUE)) %>% 
-    mutate(pnorm_sentiment_b = pnorm(standardized_sentiment)) %>% 
-    select(id, pnorm_sentiment_b) 
-  
-  inner_join(sentiments_a, sentiments_b) %>% 
-    mutate(sentiment_lexicon_a = .x) %>% 
-    mutate(sentiment_lexicon_b = .y) %>% 
-    mutate(pnorm_sentiment_abs_diff = abs(pnorm_sentiment_a - pnorm_sentiment_b)) %>% 
-    group_by(sentiment_lexicon_a, sentiment_lexicon_b) %>% 
-    summarise(consensus = 1 - mean(pnorm_sentiment_abs_diff)) %>% 
-    ungroup()
-  
-})
-```
-
-
-```{r plot_sentiment_consensus, eval = FALSE, message = FALSE}
-sentiment_lexicon_consensus %>% 
-  ggplot(mapping = aes(x = sentiment_lexicon_a, y = sentiment_lexicon_b, fill = consensus)) +
-    geom_tile() +
-    colorspace::scale_fill_continuous_sequential("Purples") +
-    theme_minimal()
 ```
 
 
