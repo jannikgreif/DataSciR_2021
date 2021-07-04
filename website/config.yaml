@@ -16,6 +16,7 @@ params:
   disableMermaid: no
   disableNextPrev: no
   titleSeparator: '::'
+  themeVariant: "mine"
 outputs:
   home:
     - HTML
@@ -35,6 +36,3 @@ Languages:
           name: <i class='fa fa-university'></i> Course website
           url: https://brain.cs.uni-magdeburg.de/kmd/DataSciR/
           weight: 20
-
-    title: Documentation for Hugo Learn Theme
-    weight: 1
