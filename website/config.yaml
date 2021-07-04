@@ -1,0 +1,40 @@
+baseURL: /
+languageCode: en-US
+defaultContentLanguage: en
+title: Hugo Learn Documentation
+theme: hugo-theme-learn
+metaDataFormat: yaml
+defaultContentLanguageInSubdir: yes
+params:
+  author: Frank Dreyer, Kolja Günther, Jannik Greif
+  customMermaidURL: https://unpkg.com/mermaid@8.8.0/dist/mermaid.min.js
+  description: DataSciR Project Documentation
+  disableBreadcrumb: yes
+  disableSearch: yes
+  showVisitedLinks: no
+  disableLandingPageButton: no
+  disableMermaid: no
+  disableNextPrev: no
+  titleSeparator: '::'
+outputs:
+  home:
+    - HTML
+    - RSS
+    - JSON
+Languages:
+  en:
+    landingPageName: <i class='fas fa-home'></i> Home
+    menu:
+      shortcuts:
+        - identifier: ds
+          name: <i class='fab fa-fw fa-github'></i> GitHub repo
+          url: https://github.com/jannikgreif/DataSciR_2021
+          weight: 10
+          
+        - identifier: ps
+          name: <i class='fa fa-university'></i> Course website
+          url: https://brain.cs.uni-magdeburg.de/kmd/DataSciR/
+          weight: 20
+
+    title: Documentation for Hugo Learn Theme
+    weight: 1
