@@ -101,17 +101,26 @@ sentiment_lexicon_consensus <- map2_dfr(sentiment_lexicons_a, sentiment_lexicons
 
 We then plotted the results into a heatmap:
 
-```{r plot_sentiment_consensus, eval = TRUE}
+```{r plot_sentiment_consensus, eval = TRUE, fig.width = 10}
 sentiment_lexicon_consensus %>% 
-  ggplot(mapping = aes(x = sentiment_lexicon_a, y = sentiment_lexicon_b, fill = consensus)) +
-    geom_tile() +
-    colorspace::scale_fill_continuous_sequential("Purples") +
+  ggplot(mapping = aes(x = sentiment_lexicon_a, y = sentiment_lexicon_b)) +
+    geom_tile(mapping = aes(fill = consensus)) +
+    geom_text(mapping = aes(label = round(consensus, 3))) +
+    scale_fill_gradient(low = "white", high = "red") + 
+    labs(
+      title = "Consensus of the Sentiment Lexicons in giving Sentiment\nScores to Tweets addressed to NBA Basketball Players", 
+      subtitle = "Using the Spearman Rank Correlation Coefficient"
+    ) +
     theme_minimal() + 
     theme(
+      plot.title = element_text(hjust = 0.5), 
+      plot.subtitle = element_text(hjust = 0.5),
       axis.title.x = element_blank(),
       axis.title.y = element_blank()
-    )
+    ) 
 ```
+
+
 
 ## Computing Sentiment Aggregates
 
@@ -142,7 +151,7 @@ sentiment_aggregates_24h_before_games <- tweets_24h_before_games %>%
 
 The following table shows an excerpt of the per-game computed sentiment aggregates for the different sentiment lexicons: 
 
-```{r display_sentiment_aggregates_24h_before_games, eval = TRUE, message = TRUE}
+```{r display_sentiment_aggregates_24h_before_games, eval = FALSE, message = TRUE}
 sentiment_aggregates_24h_before_games
 ```
 
@@ -156,7 +165,7 @@ Before analyzing these bivariate relationships however we first wanted to get a 
 
 Plotting the density curves for the unweighted average sentiment scores for the different sentiment lexicons and players revealed the following picture: 
 
-```{r plot_density_curves_avg_sentiments, eval = TRUE, fig.width = 10, fig.height = 30}
+```{r plot_density_curves_avg_sentiments, eval = FALSE, fig.width = 10, fig.height = 30}
 player_metadata %>% 
   inner_join(sentiment_aggregates_24h_before_games) %>% 
   ggplot(mapping = aes(x = avg_sentiment)) +
@@ -178,7 +187,7 @@ Looking at the individual density curves we observed that the distributions of t
 
 To check our normality assumption we also constructed Q-Q plots for the unweighted average sentiment scores: 
 
-```{r plot_qq_plot_avg_sentiments, eval = TRUE, fig.width = 10, fig.height = 30}
+```{r plot_qq_plot_avg_sentiments, eval = FALSE, fig.width = 10, fig.height = 30}
 player_metadata %>% 
   inner_join(sentiment_aggregates_24h_before_games) %>% 
   ggplot(mapping = aes(sample = avg_sentiment)) + 
@@ -201,7 +210,7 @@ The Q-Q plots confirmed our assumption of normality, since despite some curve of
 
 A similar picture could be observed for the average weighted sentiment scores (weighted by their associated retweet count) as the following equivalent grid of Q-Q plots shows:
 
-```{r plot_qq_plot_avg_weighted_sentiments, eval = TRUE, fig.width = 10, fig.height = 30}
+```{r plot_qq_plot_avg_weighted_sentiments, eval = FALSE, fig.width = 10, fig.height = 30}
 player_metadata %>% 
   inner_join(sentiment_aggregates_24h_before_games) %>% 
   ggplot(mapping = aes(sample = avg_sentiment_retweet_cnt_weighted)) + 
@@ -222,7 +231,7 @@ player_metadata %>%
 
 The distributions for the negative tweet proportions mostly did not follow a Normal distribution and were strongly right skewed however. That intuitively made sense since in most of the cases players only received a small proportion of tweets with a negative sentiment which leads to the right skewness of the distribution (also because proportions cannot go below 0). The following grid of density plots emphasize that circumstance:
 
-```{r plot_density_curves_weighted_rel_freq_negative, eval = TRUE, fig.width = 10, fig.height = 30}
+```{r plot_density_curves_weighted_rel_freq_negative, eval = FALSE, fig.width = 10, fig.height = 30}
 player_metadata %>% 
   inner_join(sentiment_aggregates_24h_before_games) %>% 
   ggplot(mapping = aes(x = rel_freq_negative)) +
@@ -244,7 +253,7 @@ player_metadata %>%
 
 Besides the sentiment aggregates we also studied how the BPM perfomance indicator values are distributed for the different players. Similar to the unweighted and weighted sentiment averages before, BPM was also normally distributed as the following grid of Q-Q plots indicates: 
 
-```{r plot_qq_plot_BPM, eval = TRUE, fig.width = 10, fig.height = 30}
+```{r plot_qq_plot_BPM, eval = FALSE, fig.width = 10, fig.height = 30}
 player_metadata %>% 
   inner_join(player_game_stats) %>% 
   inner_join(sentiment_aggregates_24h_before_games) %>% 
@@ -268,7 +277,7 @@ player_metadata %>%
 
 Knowing that the BPM values were normally distributed for the different players it was sufficient to simply construct boxplots for the performance indicator to get a sense how the individual players performed in general in the two considered seasons and how their performance fluctuated. 
 
-```{r plot-boxplot-BPM, eval = TRUE}
+```{r plot-boxplot-BPM, eval = FALSE, fig.width = 10}
 player_metadata %>% 
   inner_join(player_game_stats) %>% 
   inner_join(sentiment_aggregates_24h_before_games) %>% 
@@ -297,7 +306,7 @@ After having observed the univariate distributions of the variables that were of
 
 We began by having a closer look at the relationship between the unweighted sentiment average and the BPM performance indicator. For that purpose we created a grid of scatterplots for each player and sentiment lexicon combination and fitted a simple linear regression line through each of the resulting point clouds. Additionally, to measure the strength and direction of a potential bivariate linear relationships, we made use of the `ggpubr`-library by adding the corresponding Pearson correlation coefficient *r* and its associated *p*-value (using a T-test statistic with n-2 degrees of freedom) to each scatterplot. It should be noted here that the Pearson correlation coefficient was applicable since both variables were normally distributed as indicated before. Furthermore, we added the *p*-value to measure how significant the corresponding Pearson correlation coefficient deviated from zero (no correlation / linear relationship). The resulting plot is represented below.
 
-```{r plot_relationship_avg_sentiments_BPM, eval = TRUE, fig.width = 10, fig.height = 35}
+```{r plot_relationship_avg_sentiments_BPM, eval = FALSE, fig.width = 10, fig.height = 35}
 player_metadata %>% 
   inner_join(player_game_stats) %>% 
   inner_join(sentiment_aggregates_24h_before_games) %>% 
@@ -329,46 +338,67 @@ There was however another interesting observation the scatterplots revealed, nam
 
 [TODO] word clouds
 
-```{r plot_word_clouds_extreme_sentiments, eval = TRUE, fig.width = 10, fig.height = 35}
+```{r plot_word_clouds_extreme_sentiments, eval = FALSE, fig.width = 10, fig.height = 35}
 extreme_neg_sentiments <- sentiment_aggregates_24h_before_games %>% 
   filter(sentiment_lexicon == "jockers_rinker") %>% 
   group_by(BBRef_Player_ID) %>% 
   top_n(1, - avg_sentiment) %>% 
-  mutate(extreme_type = "Most Negative")
+  mutate(extreme_type = "Worst Sentiment")
 
 extreme_pos_sentiments <- sentiment_aggregates_24h_before_games %>% 
   filter(sentiment_lexicon == "jockers_rinker") %>% 
   group_by(BBRef_Player_ID) %>% 
   top_n(1, avg_sentiment) %>% 
-  mutate(extreme_type = "Most Positive")
+  mutate(extreme_type = "Best Sentiment")
 
 word_frequencies <- bind_rows(extreme_neg_sentiments, extreme_pos_sentiments) %>% 
   inner_join(player_metadata) %>% 
   inner_join(tweets) %>% 
   inner_join(prep_tweets) %>% 
   mutate(prep_text = str_remove_all(prep_text, "[:digit:]")) %>% 
+  drop_na(prep_text) %>% 
   group_by(Player, extreme_type) %>% 
   unnest_tokens(word, prep_text) %>% 
   anti_join(stop_words) %>%
   group_by(Player, extreme_type, word) %>% 
   summarise(freq = n()) 
 
-total_words <- word_frequencies %>% 
-  group_by(Player, extreme_type) %>% 
-  summarise(total = sum(freq)) 
-
 rel_word_frequencies <- word_frequencies %>% 
-  inner_join(total_words) %>% 
+  group_by(Player, extreme_type) %>% 
+  summarise(total = sum(freq)) %>% 
+  inner_join(word_frequencies) %>% 
   mutate(rel_freq = freq / total)
 
 rel_word_frequencies %>% 
-  arrange(desc(rel_freq)) %>% 
+  
+  # Min/Max-Scaling for visibility 
   group_by(Player, extreme_type) %>% 
+  summarise(max_rel_freq = max(rel_freq), min_rel_freq = min(rel_freq) ) %>% 
+  inner_join(rel_word_frequencies) %>% 
+  mutate(rel_freq_scaled = (rel_freq - min_rel_freq) / (max_rel_freq - min_rel_freq) + 1) %>% 
+  
+  # Used for diverging color scale
+  mutate(
+    rel_freq_color = if_else(
+      extreme_type == "Worst Sentiment", 
+      (-1) * rel_freq_scaled,
+      rel_freq_scaled
+    )
+  ) %>% 
+  
+  # To display higher frequency terms in the middle
+  arrange(desc(rel_freq)) %>% 
+  
+  # Select top 50 of the highest frequent terms for the worst and best avg. sentiment of each player
+  group_by(Player, extreme_type) %>%
   slice_head(n = 50) %>% 
-  ggplot(mapping = aes(label = word, size = rel_freq)) + 
-    geom_text_wordcloud_area() + 
-    scale_size_area(max_size = 20) + 
-    facet_grid(Player ~ extreme_type) +
+  
+  # Plot result
+  ggplot(mapping = aes(label = word, size = rel_freq_scaled, color = rel_freq_color)) + 
+    geom_text_wordcloud_area(rm_outside = TRUE) + 
+    scale_size_area(max_size = 8) + 
+    scale_color_gradient2(low = "blue", high = "red") +
+    facet_grid(Player ~ extreme_type, scales = "free", space = "free") +
     theme_minimal()
 ```
 
@@ -377,7 +407,7 @@ rel_word_frequencies %>%
 
 One might argue that ... [TODO]
 
-```{r plot_relationship_weighted_avg_sentiments_BPM, eval = TRUE, fig.width = 10, fig.height = 35}
+```{r plot_relationship_weighted_avg_sentiments_BPM, eval = FALSE, fig.width = 10, fig.height = 35}
 player_metadata %>% 
   inner_join(player_game_stats) %>% 
   inner_join(sentiment_aggregates_24h_before_games) %>% 
@@ -407,7 +437,7 @@ There were however also some exceptions. For Josh Richardson the Pearson correla
 
 used Kendall instead of Pearson due since proportion was not normally distributed and required a non-parametric coefficient 
 
-```{r plot_relationship_rel_freq_negative_tweets_BPM, eval = TRUE, fig.width = 10, fig.height = 35}
+```{r plot_relationship_rel_freq_negative_tweets_BPM, eval = FALSE, fig.width = 10, fig.height = 35}
 player_metadata %>% 
   inner_join(player_game_stats) %>% 
   inner_join(sentiment_aggregates_24h_before_games) %>% 
@@ -464,42 +494,6 @@ player_metadata %>%
       axis.title.y.right = element_text(color = "red")
     )
 ```
-
-
-```{r compute_sentiment_consensus_binary, eval = FALSE}
-sentiment_lexicons <- sentiments$sentiment_lexicon %>% unique()
-
-# Create cross product of sentiment_lexicon with itself
-sentiment_lexicons_a <- sentiment_lexicons %>% 
-  rep(each = length(sentiment_lexicons))
-sentiment_lexicons_b <- sentiment_lexicons %>% 
-  rep(times = length(sentiment_lexicons))
-
-sentiment_lexicon_consensus <- map2_dfr(sentiment_lexicons_a, sentiment_lexicons_b, ~ {
-  
-  sentiments_a <- sentiments %>% 
-    filter(sentiment_lexicon == .x) %>% 
-    select(id, positive_sentiment) %>% 
-    filter(! is.na(positive_sentiment)) %>% 
-    rename(positive_lexicon_a = positive_sentiment)
-  
-  sentiments_b <- sentiments %>% 
-    filter(sentiment_lexicon == .y) %>% 
-    select(id, positive_sentiment) %>% 
-    filter(! is.na(positive_sentiment)) %>% 
-    rename(positive_lexicon_b = positive_sentiment)
-  
-  inner_join(sentiments_a, sentiments_b) %>% 
-    mutate(sentiment_lexicon_a = .x) %>% 
-    mutate(sentiment_lexicon_b = .y) %>% 
-    mutate(consensus = positive_lexicon_a == positive_lexicon_b) %>% 
-    group_by(sentiment_lexicon_a, sentiment_lexicon_b) %>% 
-    summarise(consensus = sum(consensus) / n()) %>% 
-    ungroup()
-  
-})
-```
-
 
 
 Observation: On extremely positive sentiment values (outliers) the player had birthday. 
