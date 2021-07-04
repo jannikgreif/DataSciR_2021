@@ -33,12 +33,15 @@ library(textclean)
 # sentiment extraction packages
 library(magrittr) # for %$% operator
 library(sentimentr)
+# analysis packages
+library(ggpubr)
 
 knitr::opts_chunk$set(
   echo = FALSE, 
   eval = FALSE, 
   message = FALSE,
-  warning = FALSE
+  warning = FALSE,
+  fig.show = "asis"
 )
 
 data_dir <- "../data"
@@ -97,18 +100,16 @@ Xu and Yu [-@xu_measuring_2015] tried to capture the mood of basketball players 
 Both of these limiting factors may lead to an inaccurate prediction of the mental state of athletes. \newline
 We believe that the attitude of social media posts an athlete receives from peers and fans is also a good predictor for his or her performance. Ott and Puymbroeck support this claim  [-@academy_does_2008]. In their article they list cases where athletic performance appeared to be immediately influenced by the media and conclude that the media has the potential to change the performance of an athlete in a negative as well as positive way. In this analysis we aim to assess this relationship more closely by analyzing how social media posts addressed to NBA players affect their game performance. 
 
-## 3. Related Work
-
-## 4. The Data
+## 3. The Data
 The main challenge in the preprocessing phase of our project was to create suitable data sets which reflect both of our variables we wanted to include into our analysis. For the player's performance variable we needed to create a set of datasets which cover all neccessary statistics and metadata to be able to derive all needed values. For the sentiment variable of the tweets referring to one respective player, we first needed to narrow down the selection of players whose tweets we wanted to contain and then extract all tweets that are related to this set of players. How this was done is described in the following section.
 
-### 4.1 NBA Stats Datasets
+### 3.1 NBA Stats Datasets
 
-#### 4.1.1 Introduction
+#### 3.1.1 Introduction
 
 To get the needed data about players, games, seasons and all relevant meta-data, we extracted statistical data from [basketball-reference.com] (https://www.basketball-reference.com),a site which provides historized basketball statistics of basketball players and teams from various US American and European leagues including the NBA. From this we created local .csv files for different metrics.
 
-#### 4.1.2 Setup & Extracting Player Metadata
+#### 3.1.2 Setup & Extracting Player Metadata
 To get started, we set up our environment and for extracting the data from [basketball-reference.com](https://basketball-reference.com) we extensively used the web scraping library `rvest` in addition to the `tidyverse`.
 
 Before extracting stats about NBA players and games, we had to check, which players even have a twitter account. Fortunately for us, [basketball-reference.com](https://basketball-reference.com) provides a list of [Twitter usernames of NBA players](https://www.basketball-reference.com/friv/twitter.html), so we loaded the account names into the player-metadata.csv, along with an unique BBRef_Player_ID, which we took over from [basketball-reference.com](https://basketball-reference.com), and the clear name of the respective players.
@@ -153,11 +154,11 @@ player_metadata <- data_dir %>%
 player_metadata
 ```
 
-
-#### 4.1.3 Getting Player Season Statistics
+#### 3.1.3 Getting Player Season Statistics
 The goal of this dataset was to create a tibble which included all the statistics of players on season-level. As a basketball season is split into a regular season (comparable to our "Bundesliga"-system) and a playoff season (comparable to a tournaments k.o.-phase) which only the best teams of one regular season can pass, [basketball-reference.com](https://basketball-reference.com) provides two separate datasets, one for each season type.
-To combine those datasets and map them to each player in one table, we set up loops, that check for each season, whether a player actively participated in either the regular season and/or the playoffs, extract the statistics if the condition holds true and tags each tuple of either the regular season statistics or the playoff statistics with a respective label "Regular Season" or "Playoffs". If one player didn't participate in any of the both possibilities, we tagged him with "Did not Play".
+To combine those datasets and map them to each player in one table, we set up loops, that check for each season, whether a player actively participated in either the regular season and/or the playoffs, extract the statistics if the condition holds true and tag each tuple of either the regular season statistics or the playoff statistics with a respective label "Regular Season" or "Playoffs". If one player didn't participate in any of the both possibilities, we tagged him with "Did not Play".
 Finally the data set contained one tuple of statistics for each player and season/seasontype he participated in, including the following metrics:
+
 ```{r basketball-reference, echo = FALSE}
 library(knitr)
 table <- data.frame(
@@ -234,11 +235,10 @@ player_season_stats <- data_dir %>%
 player_season_stats
 ```
 
-
-#### 4.1.4 Extracting Player Game Statistics
-The next step was to extract performance statistics of the NBA-players on match-granularity. With this we wanted to create our main source for the performance indicators, we wanted to exploit for our exploratory analysis.
-According to [Wikipedia](https://en.wikipedia.org/wiki/Twitter) Twitter was found in 2006. Probably not many NBA players had a Twitter account during that time. In 2007 only 400,000 tweets were posted per quarter. However, the popularity of Twitter skyrocketed after its founding with over 50 million daily tweets in 2010. Let's therefore only consider players that actively played from 2010 onwards. 
-Since player performance metrics like +/- become rather unreliable if a player only gets a small amount of playing time, we only consider players that on average get at least two quarters of playing time (i.e. 24 minutes). 
+#### 3.1.4 Extracting Player Game Statistics
+The next step was to extract performance statistics of the NBA-players on game-granularity. With this we wanted to create our main source for the performance indicators, we wanted to exploit for our exploratory analysis.
+According to [Wikipedia](https://en.wikipedia.org/wiki/Twitter) Twitter was found in 2006. Probably not many NBA players had a Twitter account during that time. In 2007 only 400,000 tweets were posted per quarter. However, the popularity of Twitter skyrocketed after its founding with over 50 million daily tweets in 2010. Let's therefore only consider players that actively played from 2010 onward. 
+Since player performance metrics like +/- become rather unreliable if a player only gets a small amount of playing time, we only considered players that on average get at least two quarters of playing time (i.e. 24 minutes).
 
 ```{r filter-relevant-players, eval = TRUE}
 
@@ -260,6 +260,8 @@ relevant_players <- player_season_stats %>%
 relevant_players
 ```
 
+In detail the player-game-stats.csv contains for each player and for each game within our observation range a detailed set of metadata, like the season type and date of the game or the team for which the player started, as well as individual performance statistics for each game, like the ones we also extracted for the season statistics but on game-granularity plus extra metrics that can be obtained for each game individually. While the already known statistics were obtained from the basic game logs, [basketball-reference.com](https://basketball-reference.com) offers for each individual player, the additional data was extracted from the advanced game logs. With these advanced statistics we also added the Box Plus/Minus score, "a box score estimate of the points per 100 possessions a player contributed above a league-average player (defined as being 0.0), translated to an average team."[TODO reference!]
+This metric is calculated from the box score information of a player, his position on-court, and the overall performance of the team. Explained on an example, a score of +10.0 would mean, that the overall team is 10 points per 100 possessions better with this particular player on-court than with an average player. It should become the central metric of player performance for our correlation analysis.
 
 ```{r player-game-stats}
 
@@ -420,8 +422,7 @@ player_game_stats <- data_dir %>%
 player_game_stats
 ```
 
-
-#### 4.1.5 Creating Game Metadata
+#### 3.1.5 Creating Game Metadata
 The last data source we wanted to create, was a table of metadata for each game. For this purpose we extracted the NBA schedule and results from [basketball-reference.com](https://basketball-reference.com) for each season from 2010 to 2021 column-wise and merged these columns into one tibble. This was then stored in the game-metadata.csv.
 
 ```{r game-metadata, eval = FALSE}
@@ -527,8 +528,7 @@ As you can see in the table below, the metadata we extracted contains for each m
 game_metadata
 ```
 
-
-### 4.2 Getting the Twitter Data
+### 3.2 Getting the Twitter Data
 The Twitter-Dataset contains all Tweets related to the players we want to inspect in our analysis for their on-court performance and this part contains the whole pipeline of extracting these relevant tweets. But before we can exploit the API, some pre-work has to be done.
 First, we set up the main directory for our data to be created and the four datasets we previously created from the NBAStats source get loaded. In the next step and before we could start with the extraction of relevant tweets for our NBA players, we had to narrow down the number of players to be considered by our pipeline. The data sets above were created over 227 players. As the process of collecting tweets for such a number of individuals would be a huge overload, we decided to pick those top players, which are most relevant for us, following some criteria we set up in the following.
 
@@ -539,14 +539,14 @@ game_metadata <- paste(data_dir,"game-metadata.csv", sep ="/") %>% read_csv()
 player_season_stats <- paste(data_dir,"player-season-stats.csv", sep ="/") %>% read_csv()
 ```
 
-#### 4.2.1 Players who played actively for the same team
+#### 3.2.1 Players who played actively for the same team
 First of all we picked those players, which continuously played in the regular seasons 2016/17 - 2018/19. We didn't consider the playoffs here, as many players didn't get into the playoffs with their teams but still played a full regular season and therefore are provide enough interesting play-data for our analysis. Furthermore, we only wanted those players in our data set, which stayed at their respective team for the whole time of observation. The idea behind this was to eliminate team switches as possible factors that influence the player's performance aside those we want to observe. Additionally we wanted only those players who had on-court time in at least 80% of the games during their regular season.
 
-#### 4.2.2 Players whose BPM varied by a standard deviation of at least 8
+#### 3.2.2 Players whose BPM varied by a standard deviation of at least 8
 As third parameter we inspected the variable "Box Plus/Minus" (BPM) in the player_game_stats data set, which is a score-based performance indicator that "estimates a basketball player's contribution to the team when that player is on the court. [...] BPM uses a player's box score information, position, and the team's overall performance to estimate the player's contribution in points above league average per 100 possessions played."[insert reference: https://www.basketball-reference.com/about/bpm2.html]
 With this estimate, we wanted to extract those players, whose performance is relatively unstable in comparison to their colleagues by computing the standard deviation of performance for each player and storing them from the highest deviation in descending order. on this data set we applied a cutoff value to get only those players, whose standard deviation was higher or equal to 8.
 
-#### 4.2.3 Players with at least 1.000 followers
+#### 3.2.3 Players with at least 1.000 followers
 The last parameter we wanted to include into our selection concerned about the players who have a minimal follower count of 1.000 users on Twitter. For this we joined our data with the twitter metadata we extracted along with the tweets themselves and addressed the variable 'follower_count' to be at least of size 1.000. Finally we then filtered our 'relevant_players' tibble by an inner join with this selection on their common variable 'screen_name'.
 
 ```{r select_relevant_players, eval = TRUE}
@@ -584,13 +584,12 @@ relevant_players <- player_season_stats %>%
   select(player_metadata %>% names())
 ```
 
-#### 4.2.4 Merging the parameters
+#### 3.2.4 Merging the parameters
 Finally we merged the cut off standard deviation values of the players with their respective twitter-account data, including the count of followers, the count of posted statuses, the count of accounts indicated as favourites and the player's screen name.Now the last step was to create a final set of players we wanted to consider in our analysis by merging the two data sets created into one and picking the top intersecting players.
 
 ```{r display_relevant_players, eval = TRUE, message = TRUE}
 relevant_players
 ```
-
 
 ```{r select_relevant_player_stats, eval = TRUE}
 relevant_player_stats <- relevant_players %>% 
@@ -600,16 +599,15 @@ relevant_player_stats <- relevant_players %>%
   filter(Season %in% c("2017-18", "2018-19"))
 ```
 
-
 ```{r display_relevant_player_stats, eval = TRUE, message = TRUE}
 relevant_player_stats
 ```
 
-
-### 4.3 Extracting the relevant tweets
+### 3.3 Extracting the relevant tweets
 With the given data we were now able to extract exactly those tweets we needed for our analysis. To do so, we chose to use the get_all_tweets function from the academictwitteR packagage.
 
-To only extract tweets that can be assumed t
+To only extract tweets that can be assumed to be relevant for a specific game day, we delimited the time range of tweets to be considered for the extraction to the time between 24 hours and 45 minutes before a game (to be on the safe side, we first extracted tweets in a range of 48 hours before a game and boiled it down to 24 hours in an extra step). With the first limit we wanted to avoid that tweets, related to another match, get considered, the 45-minute delimiter was set according to the assumption, that it is unlikely for players to check their twitter just 45 minutes before a game. 
+After these parameters were set, we obtained the tweets for each player of our preselection-list discussed before. Alongside with the raw text, the date of creation, the count how often a post was retweeted, the reply count, the count of likes for each tweet and the quote count were added to the dataset of each player's tweets. A very important step for our later analysis was to map each tweet to the respective BBRef_Player_ID and the BBRef_Game_ID, to be able to address tweets based on a player- or a game-selection. Finally, each set got stored under the player's twitter name.
 <!--
 ```{r extract_and_save_tweets}
 time_window <- 48
@@ -667,8 +665,6 @@ relevant_player_stats %>%
   })
 ```
 -->
-
-
 ```{r load_tweets_1, eval = TRUE}
 tweets <- list.files(tweets_dir, full.names = TRUE) %>% 
   map_dfr(read_csv)
@@ -676,13 +672,11 @@ tweets <- list.files(tweets_dir, full.names = TRUE) %>%
 tweets <- player_metadata %>% inner_join(tweets)
 ```
 
-
 ```{r display_tweets, eval = TRUE, message = TRUE}
 tweets
 ```
 
-
-# 5. Preprocessing the Twitter Data
+# 4. Preprocessing the Twitter Data
 After we finished setting up our data sets and before extracting sentiments from the tweets it is reasonable to preprocess them in advance in order to improve the accuracy of the computed sentiments, especially for our case where the text is in the form of tweets. Tweets are most often written in a less formal language, including abbrevations and slang, so our focus layed in identifying and converting these phenomenons into a language that has increased machine readability. That is why we used the `textclean` package to apply the following preprocessing steps on each tweet: 
 
 At first each tweet got lowercased. Then we resolved non-ascii characters, replaced html-symbols by word meanings (e.g. "&amp" to "and") so that they can be captured by the analyzer and replaced (multiple succeeding) white space symbols by single white spaces (e.g. "\\t" by " "). After that, Twitter mentions, hashtags as well as URLs (e.g. "@StephenCurry30", "#BBNFOREVER", "https://t.co/37cSfQhMJs") got removed as they give us no further information about the sentiments and only force the analyzer to run over more words to check in the lexicon. Additionally we replaced emojis by word meaning (e.g. ":)" to "smiley"). Similar to how we treated html-symbols, contractions got replaced by their multi-word forms (e.g. "I'll" to "I will") again for the sake of machine readability. 
@@ -759,7 +753,6 @@ prep_tweets <- prep_tweets %>%
   }))
 ```
 
-
 ```{r store_preprocessed_tweets}
 file_path <- data_dir %>% paste("prep-tweets.csv", sep = "/")
 
@@ -767,7 +760,6 @@ prep_tweets %>%
   select(c(id, prep_text, emojis)) %>% 
   write_csv(file_path)
 ```
-
 
 ```{r load_preprocessed_tweets, eval = TRUE}
 prep_tweets <-data_dir %>% 
@@ -784,7 +776,7 @@ tweets %>%
   unique()
 ```
 
-# 6. Sentiment Extraction
+# 5. Sentiment Extraction
 Our next task was to extract sentiments from the preprocessed tweets and extracted emojis. To solve this task we used the package `sentimentr`, since compared to other solutions (e.g. `syuzhet` and `tidytext`), `sentimentr` uses an orderd bag of words model that allows it to incorporate valance shifters before or after polarized words to negate or intensify their sentiment (e.g. "I do **not** like it!" or "I **really** like it!"). That ultimately gives `sentimentr` the power to much more accurately assign sentiments to text passages. 
 
 The sentiments were computed sentence-wise for each tweet and aggregated via the ``average_downweighted_zero`` ``sentimentr``-function that downweights sentiment-scores for sentences close to zero. 
@@ -807,7 +799,6 @@ prep_tweets <- data_dir %>% paste("prep-tweets.csv", sep = "/") %>% read_csv()
 # tweets %>% inner_join(prep_tweets) %>% select(c(text, prep_text, emojis))
 ```
 
-
 ```{r bing_sentiments}
 bing_sentiments <- prep_tweets %>% 
   mutate(sentences = get_sentences(prep_text)) %$%
@@ -819,7 +810,6 @@ bing_sentiments %>% write_csv(file_path)
 
 bing_sentiments
 ```
-
 
 ```{r syuzhet_sentiments}
 syuzhet_sentiments <- prep_tweets %>% 
@@ -833,7 +823,6 @@ syuzhet_sentiments %>% write_csv(file_path)
 syuzhet_sentiments
 ```
 
-
 ```{r jockers_rinker_sentiments}
 jockers_rinker_sentiments <- prep_tweets %>%
   mutate(sentences = get_sentences(prep_text)) %$%  
@@ -846,7 +835,6 @@ jockers_rinker_sentiments %>% write_csv(file_path)
 jockers_rinker_sentiments
 ```
 
-
 ```{r nrc_sentients}
 nrc_sentiments <- prep_tweets %>% 
   mutate(sentences = get_sentences(prep_text)) %$%
@@ -858,7 +846,6 @@ nrc_sentiments %>% write_csv(file_path)
 
 nrc_sentiments
 ```
-
 
 ```{r afinn_sentiments}
 # Note: download for "afinn" has to be confirmed
@@ -876,7 +863,6 @@ afinn_sentiments %>% write_csv(file_path)
 
 afinn_sentiments
 ```
-
 
 ```{r novak_emoji_sentiments}
 novak_emoji_sentiments <- prep_tweets %>%
