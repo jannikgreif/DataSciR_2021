@@ -340,7 +340,7 @@ So even here, a direct influence of the sentiments as a
 feature can not be derived from the model, underlining our 
 findings in the correlation analysis that the sentiments have no significant influence on a players in-game performance.
 
-## 5.4 Variable Importance Scores
+### 5.4 Variable Importance Scores
 
 ```{r variable_importance, message = FALSE, include = FALSE}
 get_variable_importance <- function(x, name){
