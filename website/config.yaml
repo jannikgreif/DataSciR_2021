@@ -9,7 +9,7 @@ params:
   author: Frank Dreyer, Kolja Günther, Jannik Greif
   customMermaidURL: https://unpkg.com/mermaid@8.8.0/dist/mermaid.min.js
   description: DataSciR Project Documentation
-  disableBreadcrumb: yes
+  disableBreadcrumb: no
   disableSearch: yes
   showVisitedLinks: no
   disableLandingPageButton: no
