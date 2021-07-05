@@ -186,7 +186,7 @@ sentiment in comparison to other days. To investigate these outliers more closel
 player, one for the smallest average tweet sentiment the player received and one for the highest. We used the tweet 
 sentiments created from the Jockers-Rinker lexicon for this purpose.
 
-This RShiny App showcases the wordclouds for each player. Starting up the app may take some time. 
+This RShiny App showcases the wordclouds for each player. 
 <iframe src="https://jannikgreif.shinyapps.io/DataSciR_wordclouds/" width="100%" height="650"></iframe>
 
 On extremely positive sentiment values (outliers) the player had birthday.
