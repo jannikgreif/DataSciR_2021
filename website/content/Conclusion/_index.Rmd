@@ -1,0 +1,12 @@
+---
+title: "Conclusion"
+weight: 6
+chapter: yes
+---
+
+<style>#chapter p {
+text-align: justify} #chapter h3 {
+text-align: left}
+</style>
+
+## 6. Conclusion

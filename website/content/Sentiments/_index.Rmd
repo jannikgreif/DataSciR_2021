@@ -1,0 +1,23 @@
+---
+title: Sentiments
+weight: 3
+chapter: true
+---
+
+<style>#chapter p {
+text-align: justify} #chapter h3 {
+text-align: left}
+</style>
+
+## 3. Sentiments
+
+The following sentiment lexica were used to compute the sentiments for each tweet: 
+
+- **_Bing_** : positive/negative word list 
+- **_Syuzhet_** : word list with sentiment scores reaching from -1 to 1 
+- **_Jockers-Rinker_** : combined version of the Jocker's Syuzhet lexicon and Rinker's augmented Bing lexicon 
+- **_NRC_** : positive/negative word list 
+- **_AFINN_** : word list with sentiments reaching on a discrete scale from -5 to 5 
+- **_Novak_** : list of emojis with sentiment scores reaching from -1 to 1
+
+Each lexicon is applied to the raw text of each tweet to calculate the sentiment scores. The results of the sentiment analysis are displayed in the Sentiment Analysis subpage.
