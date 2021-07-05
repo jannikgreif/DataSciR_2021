@@ -120,7 +120,7 @@ sentiment_lexicon_consensus %>%
     ) 
 ```
 
-
+Generally we can see that except of the Emoji Sentiment Lexicon by Novak all other sentiment lexicons seem to correlate rather well. Apparently the computed tweet sentiments from the Emoji Lexicon differ strongly from the sentiments of the other lexicons which is reasonable since the Emoji Lexicon is only computed on the emojis contained in the tweet while the other lexicons use the textual information of the tweet. The Jockers Rinker and Syuzhet lexicons are most similar with a Spearman correlation coefficient around 0.95. This intuitively also makes sense since Jockers-Rinker is a combined version of Syuzhet and Bing as mentioned before.
 
 ## Computing Sentiment Aggregates
 
@@ -151,7 +151,7 @@ sentiment_aggregates_24h_before_games <- tweets_24h_before_games %>%
 
 The following table shows an excerpt of the per-game computed sentiment aggregates for the different sentiment lexicons: 
 
-```{r display_sentiment_aggregates_24h_before_games, eval = FALSE, message = TRUE}
+```{r display_sentiment_aggregates_24h_before_games, eval = TRUE, message = TRUE}
 sentiment_aggregates_24h_before_games
 ```
 
@@ -165,7 +165,7 @@ Before analyzing these bivariate relationships however we first wanted to get a 
 
 Plotting the density curves for the unweighted average sentiment scores for the different sentiment lexicons and players revealed the following picture: 
 
-```{r plot_density_curves_avg_sentiments, eval = FALSE, fig.width = 10, fig.height = 30}
+```{r plot_density_curves_avg_sentiments, eval = TRUE, fig.width = 10, fig.height = 30}
 player_metadata %>% 
   inner_join(sentiment_aggregates_24h_before_games) %>% 
   ggplot(mapping = aes(x = avg_sentiment)) +
@@ -187,7 +187,7 @@ Looking at the individual density curves we observed that the distributions of t
 
 To check our normality assumption we also constructed Q-Q plots for the unweighted average sentiment scores: 
 
-```{r plot_qq_plot_avg_sentiments, eval = FALSE, fig.width = 10, fig.height = 30}
+```{r plot_qq_plot_avg_sentiments, eval = TRUE, fig.width = 10, fig.height = 30}
 player_metadata %>% 
   inner_join(sentiment_aggregates_24h_before_games) %>% 
   ggplot(mapping = aes(sample = avg_sentiment)) + 
@@ -210,7 +210,7 @@ The Q-Q plots confirmed our assumption of normality, since despite some curve of
 
 A similar picture could be observed for the average weighted sentiment scores (weighted by their associated retweet count) as the following equivalent grid of Q-Q plots shows:
 
-```{r plot_qq_plot_avg_weighted_sentiments, eval = FALSE, fig.width = 10, fig.height = 30}
+```{r plot_qq_plot_avg_weighted_sentiments, eval = TRUE, fig.width = 10, fig.height = 30}
 player_metadata %>% 
   inner_join(sentiment_aggregates_24h_before_games) %>% 
   ggplot(mapping = aes(sample = avg_sentiment_retweet_cnt_weighted)) + 
@@ -231,7 +231,7 @@ player_metadata %>%
 
 The distributions for the negative tweet proportions mostly did not follow a Normal distribution and were strongly right skewed however. That intuitively made sense since in most of the cases players only received a small proportion of tweets with a negative sentiment which leads to the right skewness of the distribution (also because proportions cannot go below 0). The following grid of density plots emphasize that circumstance:
 
-```{r plot_density_curves_weighted_rel_freq_negative, eval = FALSE, fig.width = 10, fig.height = 30}
+```{r plot_density_curves_weighted_rel_freq_negative, eval = TRUE, fig.width = 10, fig.height = 30}
 player_metadata %>% 
   inner_join(sentiment_aggregates_24h_before_games) %>% 
   ggplot(mapping = aes(x = rel_freq_negative)) +
@@ -253,7 +253,7 @@ player_metadata %>%
 
 Besides the sentiment aggregates we also studied how the BPM perfomance indicator values are distributed for the different players. Similar to the unweighted and weighted sentiment averages before, BPM was also normally distributed as the following grid of Q-Q plots indicates: 
 
-```{r plot_qq_plot_BPM, eval = FALSE, fig.width = 10, fig.height = 30}
+```{r plot_qq_plot_BPM, eval = TRUE, fig.width = 10, fig.height = 30}
 player_metadata %>% 
   inner_join(player_game_stats) %>% 
   inner_join(sentiment_aggregates_24h_before_games) %>% 
@@ -275,9 +275,9 @@ player_metadata %>%
     )
 ```
 
-Knowing that the BPM values were normally distributed for the different players it was sufficient to simply construct boxplots for the performance indicator to get a sense how the individual players performed in general in the two considered seasons and how their performance fluctuated. 
+Knowing that the BPM values were normally distributed for the different players it was sufficient to simply construct boxplots for the performance indicator to get a sense how the individual players performed in general and how their performance fluctuated over the two considered seasons. 
 
-```{r plot-boxplot-BPM, eval = FALSE, fig.width = 10}
+```{r plot-boxplot-BPM, eval = TRUE, fig.width = 10}
 player_metadata %>% 
   inner_join(player_game_stats) %>% 
   inner_join(sentiment_aggregates_24h_before_games) %>% 
@@ -297,7 +297,6 @@ player_metadata %>%
     ) 
 ```
 
-
 ## Bivariate Distribution and Correlation Analysis
 
 After having observed the univariate distributions of the variables that were of importance for this analysis we now wanted to assess whether there is a relationship between the individual sentiment aggregates and the BPM values for any of the individual players and sentiment lexicons. 
@@ -306,7 +305,7 @@ After having observed the univariate distributions of the variables that were of
 
 We began by having a closer look at the relationship between the unweighted sentiment average and the BPM performance indicator. For that purpose we created a grid of scatterplots for each player and sentiment lexicon combination and fitted a simple linear regression line through each of the resulting point clouds. Additionally, to measure the strength and direction of a potential bivariate linear relationships, we made use of the `ggpubr`-library by adding the corresponding Pearson correlation coefficient *r* and its associated *p*-value (using a T-test statistic with n-2 degrees of freedom) to each scatterplot. It should be noted here that the Pearson correlation coefficient was applicable since both variables were normally distributed as indicated before. Furthermore, we added the *p*-value to measure how significant the corresponding Pearson correlation coefficient deviated from zero (no correlation / linear relationship). The resulting plot is represented below.
 
-```{r plot_relationship_avg_sentiments_BPM, eval = FALSE, fig.width = 10, fig.height = 35}
+```{r plot_relationship_avg_sentiments_BPM, eval = TRUE, fig.width = 10, fig.height = 35}
 player_metadata %>% 
   inner_join(player_game_stats) %>% 
   inner_join(sentiment_aggregates_24h_before_games) %>% 
@@ -334,24 +333,22 @@ Nevertheless, there were also some counter examples where the Pearson correlatio
 
 Due to these reasons we had to conclude that there is no evidence of a significantly strong linear correlation between the average sentiment of tweets players receive within 24 hours before games and their performance within the games. 
 
-There was however another interesting observation the scatterplots revealed, namely the prominent outliers. For almost every player there was at least one game day in which the average tweet sentiment was vastly more positive compared to other days. Additionally there were some players with game days associated with an extremely negative average tweet sentiment in comparison to other days. To investigate these outliers more closely we created two word clouds for each player, one for the smallest average tweet sentiment the player received and one for the highest. We used the tweet sentiments created from the Jockers-Rinker lexicon for this purpose. 
+There was however another interesting observation the scatterplots revealed, namely the prominent outliers. For almost every player there was at least one game day in which the average tweet sentiment was vastly more positive compared to other days. Additionally there were some players with game days associated with an extremely negative average tweet sentiment in comparison to other days. To investigate these outliers more closely we created two word clouds for each player, one for the worst average tweet sentiment the player received and one for the best. We used the tweet sentiments created from the Jockers-Rinker lexicon for this purpose and mapped the 50 most frequent words that appeared in the corresponding tweets on each wordcloud. 
 
-[TODO] word clouds
-
-```{r plot_word_clouds_extreme_sentiments, eval = FALSE, fig.width = 10, fig.height = 35}
-extreme_neg_sentiments <- sentiment_aggregates_24h_before_games %>% 
+```{r compute_rel_word_frequencies_extreme_sentiments, eval = TRUE}
+worst_sentiments <- sentiment_aggregates_24h_before_games %>% 
   filter(sentiment_lexicon == "jockers_rinker") %>% 
   group_by(BBRef_Player_ID) %>% 
   top_n(1, - avg_sentiment) %>% 
   mutate(extreme_type = "Worst Sentiment")
 
-extreme_pos_sentiments <- sentiment_aggregates_24h_before_games %>% 
+best_sentiments <- sentiment_aggregates_24h_before_games %>% 
   filter(sentiment_lexicon == "jockers_rinker") %>% 
   group_by(BBRef_Player_ID) %>% 
   top_n(1, avg_sentiment) %>% 
   mutate(extreme_type = "Best Sentiment")
 
-word_frequencies <- bind_rows(extreme_neg_sentiments, extreme_pos_sentiments) %>% 
+word_frequencies <- bind_rows(worst_sentiments, best_sentiments) %>% 
   inner_join(player_metadata) %>% 
   inner_join(tweets) %>% 
   inner_join(prep_tweets) %>% 
@@ -368,7 +365,10 @@ rel_word_frequencies <- word_frequencies %>%
   summarise(total = sum(freq)) %>% 
   inner_join(word_frequencies) %>% 
   mutate(rel_freq = freq / total)
+```
 
+
+```{r plot_word_clouds_extreme_sentiments, eval = TRUE, fig.width = 10, fig.height = 35}
 rel_word_frequencies %>% 
   
   # Min/Max-Scaling for visibility 
@@ -398,16 +398,51 @@ rel_word_frequencies %>%
     geom_text_wordcloud_area(rm_outside = TRUE) + 
     scale_size_area(max_size = 8) + 
     scale_color_gradient2(low = "blue", high = "red") +
-    facet_grid(Player ~ extreme_type, scales = "free", space = "free") +
+    facet_grid(Player ~ extreme_type) +
     theme_minimal()
 ```
 
+The most prominent observation derived from the wordclouds was that the best average sentiments were frequently associated with the words "happy" and "birthday", which indicated that these players were receiving birthday wishes on that same game day. Besides birthdays it appeared that other players received positive tweet sentiments due to another important day or event in their life. For stephen curry the terms "baby", "congrats", "boy", "family", "hands", "blue" and "eyes" occurred rather frequently. By having a glimpse on the tweets he received that day we can see people were congratulating him for another baby that was on the way: 
+
+```{r compute_best_sentiment_tweets_stephen_curry, eval = TRUE, message = TRUE}
+best_sentiments %>% 
+  inner_join(player_metadata) %>% 
+  filter(Player == "Stephen Curry") %>%
+  inner_join(tweets) %>% 
+  inner_join(prep_tweets) %>% 
+  select(prep_text)
+```
+
+For the worst sentiments the picture was not that clear on the other hand. Jamal Murray for example also frequently received the words "happy" and "birthday" on the game day with the worst average tweet sentiment. By a closer look on the tweets themselves however, we saw that he was only tagged on 22 tweets that day and that the birthday wishes were actually addressed to the player Dejuan Wagner, but not himself:
+
+```{r display_worst_sentiment_tweets_jamal_murray, eval = TRUE, message = TRUE}
+worst_sentiments %>% 
+  inner_join(player_metadata) %>% 
+  filter(Player == "Jamal Murray") %>% 
+  inner_join(tweets) %>% 
+  inner_join(prep_tweets) %>% 
+  select(prep_text)
+```
+
+One noticeable observation was that swear words tended to appear more frequently in the associated tweets. E.g with regard to the worst sentiment game of Klay Thompson the terms "shots", "missed" and "bad", in combination with several swear words reflect a situation where the player received some hate due to some missed shots from a previous game. The example tweets are displayed below:
+
+```{r display_worst_sentiment_tweets_klay_thompson, eval = TRUE}
+worst_sentiments %>% 
+  inner_join(player_metadata) %>% 
+  filter(Player == "Klay Thompson") %>% 
+  inner_join(tweets) %>% 
+  inner_join(prep_tweets) %>% 
+  filter(str_detect(prep_text, "bad|fucking|mad|fuck|fucking|missed")) %>% 
+  select(prep_text)
+```
+
+Nevertheless it was hard to make a general conclusion why the players received such bad tweet sentiments on the associated days from the most frequent terms alone. 
 
 ### Relationship between the Weighted Average 24-Hour Tweet Sentiment and the BPM Performance Indicator
 
-One might argue that ... [TODO]
+One might argue that players who receive over a thousand tweets each day, is not capable of reading or even noticing all the tweets he receives. Due to this we made the assumption, that those tweets, which have a higher retweet count also have a higher likelihood of being read. Considering this, we now used the retweet-count-weighted sentiments, which already got created before, for the computation of the the mean sentiment and created a correlation plot like we did in the previous section.
 
-```{r plot_relationship_weighted_avg_sentiments_BPM, eval = FALSE, fig.width = 10, fig.height = 35}
+```{r plot_relationship_weighted_avg_sentiments_BPM, eval = TRUE, fig.width = 10, fig.height = 35}
 player_metadata %>% 
   inner_join(player_game_stats) %>% 
   inner_join(sentiment_aggregates_24h_before_games) %>% 
@@ -429,15 +464,13 @@ player_metadata %>%
     )
 ```
 
-There were however also some exceptions. For Josh Richardson the Pearson correlation coefficients appeared to be rather significant with *p*-values less than 0.1 for the different sentiment lexicons (except for the emoji lexicon by Novak). Despite the fact that these correlations were all positive for this player, they were still quite weak however, with a maximum Pearson correlation coefficient of 0.29 for the Jockers-Rinker sentiment lexicon. 
+Generally we can say that the weighted average sentiment also did not reveal any better correlation results. There were however also some exceptions. For Josh Richardson the Pearson correlation coefficients appeared to be rather significant with *p*-values less than 0.1 for the different sentiment lexicons (except for the emoji lexicon by Novak). Despite the fact that these correlations were all positive for this player, they were still quite weak however, with a maximum Pearson correlation coefficient of 0.29 for the Jockers-Rinker sentiment lexicon. Additionally it is to say that this is an exception and does not alter the general observation much.
 
 ### Relationship between the Proportion of Negative Tweets and the BPM Performance Indicator
 
-[TODO]
+We created the same plot a third time, but now only considering the proportion of negative tweets a player received at each respective game. Since the distributions of the negative proportions were heavily right skewed and not normally distributed, we used the Kendall-Tau rank correlation coefficient instead of the Pearson metric. 
 
-used Kendall instead of Pearson due since proportion was not normally distributed and required a non-parametric coefficient 
-
-```{r plot_relationship_rel_freq_negative_tweets_BPM, eval = FALSE, fig.width = 10, fig.height = 35}
+```{r plot_relationship_rel_freq_negative_tweets_BPM, eval = TRUE, fig.width = 10, fig.height = 35}
 player_metadata %>% 
   inner_join(player_game_stats) %>% 
   inner_join(sentiment_aggregates_24h_before_games) %>% 
@@ -459,11 +492,13 @@ player_metadata %>%
     )
 ```
 
+Unfortunately, this aggregate delivered a similar picture regarding the correlation we wanted to inspect.
+
 ### Time Dependent Relationship between the Average Tweet Sentiments and the BPM Performance Indicator
 
-[TODO]
+Finally, we investigated if there is maybe a time dependent relationship between the average sentiment score and the BPM value the players received. For that purpose we exemplary plotted the Jockers-Rinker average sentiments and the BPM values against the game dates on which they were observed for each player for the season 2018-19. Since both variables fluctuated quite strongly over the considered timespan we overlaid a smoothed average line to improve the interpretation ability. The resulting plot is displayed below. 
 
-```{r season_18_19_trend_BPM_vs_jockers_rinker, eval = FALSE, message = TRUE, fig.width = 10, fig.height = 80}
+```{r season_18_19_trend_BPM_vs_jockers_rinker, eval = TRUE, message = TRUE, fig.width = 10, fig.height = 80}
 scaling_coef <- 60
 
 player_metadata %>% 
@@ -484,29 +519,26 @@ player_metadata %>%
     facet_wrap(~ Player, ncol = 1) +
   
     scale_y_continuous( 
-      name = "BPM",
-      sec.axis = sec_axis(~./scaling_coef, name = "Jockers/Rinker")
+      name = "Box Plus/Minus (BPM)",
+      sec.axis = sec_axis(~./scaling_coef, name = "Jockers-Rinker Sentiment Average")
     ) + 
     coord_cartesian(ylim = c(-10,20)) + 
+    labs(
+      title = "Time-Dependent Relationship between the Average Sentiments of Tweets Players received\nwithin 24 Hours before Games and their BPM Value within the Games in the season 2018-19", 
+      subtitle = "Using the Jockers-Rinker Sentiment Average"
+    ) +
     theme_minimal() + 
     theme(
+      plot.title = element_text(hjust = 0.5), 
+      plot.subtitle = element_text(hjust = 0.5),
       axis.title.y = element_text(color = "blue"),
       axis.title.y.right = element_text(color = "red")
     )
 ```
 
+As one can see, there appeared to be also no time-dependent association between the variables.
 
-Observation: On extremely positive sentiment values (outliers) the player had birthday. 
+Concluding to this section we can wrap up our observations as follows:
 
-```{r birthday_outliers, eval = TRUE, message = FALSE}
-sentiment_aggregates_24h_before_games %>% 
-  filter(sentiment_lexicon == "nrc") %>% 
-  group_by(BBRef_Player_ID) %>% 
-  top_n(1, avg_sentiment) %>% 
-  select(c(BBRef_Player_ID, BBRef_Game_ID)) %>% 
-  inner_join(player_metadata) %>% 
-  inner_join(tweets) %>% 
-  filter(Player == "Draymond Green") %>% 
-  select(c(Player, created_at, text))
-```
-
+ * The desired positive correlation between the average sentiments of tweets related to one specific player and game could not be found with any of the approaches described.
+ * Therefore, based on our analyses, it is to assume that our main hypothesis does not hold true and there is no significant correlation between these two variables.
