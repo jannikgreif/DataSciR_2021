@@ -31,8 +31,11 @@ Languages:
           name: <i class='fab fa-fw fa-github'></i> GitHub repo
           url: https://github.com/jannikgreif/DataSciR_2021
           weight: 10
-          
+        - identifier: ps
+          name: <i class="fas fa-file"></i> Project Notebook
+          url: https://github.com/jannikgreif/DataSciR_2021/blob/main/Proposal/proposal.pdf
+          weight: 20          
         - identifier: ps
           name: <i class='fa fa-university'></i> Course website
           url: https://brain.cs.uni-magdeburg.de/kmd/DataSciR/
-          weight: 20
+          weight: 30
