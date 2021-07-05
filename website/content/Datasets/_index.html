@@ -16,12 +16,12 @@ text-align: left}
 <div id="nba-stats-datasets" class="section level3">
 <h3>2.1 NBA Stats Datasets</h3>
 <p>To get the needed data about players, games, seasons and all relevant meta-data, we extracted statistical data from <a href="https://www.basketball-reference.com">basketball-reference.com</a>, a site which provides historical basketball statistics of basketball players and teams from various US American and European leagues including the NBA.</p>
-<p>We use four datasets:</p>
+<p>We use the following datasets:</p>
 <ul>
-<li>Game data: GameId, Date, Gametime and the final score</li>
-<li>Player data: PlayerId, Name of each player and the name of his twitter account name</li>
-<li>Player season stats: Player stats accumulated for each season</li>
-<li>Player game stats: Performance data for each unique player/game combination - this datasets also includes the variable BPM we use as performance indicator</li>
+<li><strong><em>Game data</em></strong> : GameId, Date, Gametime and the final score</li>
+<li><strong><em>Player data</em></strong> : PlayerId, Name of each player and the name of his twitter account name</li>
+<li><strong><em>Player season stats</em></strong> : Player stats accumulated for each season</li>
+<li><strong><em>Player game stats</em></strong> : Performance data for each unique player/game combination - this datasets also includes the variable BPM we use as performance indicator</li>
 </ul>
 <p><a href="https://www.basketball-reference.com/about/bpm2.html">BPM</a> uses a player’s box score information, position, and the team’s overall performance to estimate the player’s contribution in points above league average per 100 possessions played.</p>
 <p>We picked those players, which continuously played in the regular seasons 2016/17 - 2018/19. We didn’t consider the playoffs here, as many players didn’t get into the playoffs with their teams but still played a full regular season and therefore are provide enough interesting play-data for our analysis. Furthermore, we only wanted those players in our data set, which stayed at their respective team for the whole time of observation. The idea behind this was to eliminate team switches as possible factors that influence the player’s performance aside those we want to observe. Additionally we wanted only those players who had on-court time in at least 80% of the games during their regular season.

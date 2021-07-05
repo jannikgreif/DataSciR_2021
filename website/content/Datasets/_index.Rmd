@@ -15,12 +15,12 @@ text-align: left}
 
 To get the needed data about players, games, seasons and all relevant meta-data, we extracted statistical data from [basketball-reference.com](https://www.basketball-reference.com), a site which provides historical basketball statistics of basketball players and teams from various US American and European leagues including the NBA. 
 
-We use four datasets:
+We use the following datasets:
 
-  - Game data: GameId, Date, Gametime and the final score 
-  - Player data: PlayerId, Name of each player and the name of his twitter account name
-  - Player season stats: Player stats accumulated for each season
-  - Player game stats: Performance data for each unique player/game combination - this datasets also includes the variable BPM we use as performance indicator
+  - **_Game data_** : GameId, Date, Gametime and the final score 
+  - **_Player data_** : PlayerId, Name of each player and the name of his twitter account name
+  - **_Player season stats_** : Player stats accumulated for each season
+  - **_Player game stats_** : Performance data for each unique player/game combination - this datasets also includes the variable BPM we use as performance indicator
   
 [BPM](https://www.basketball-reference.com/about/bpm2.html) uses a player's box score information, position, and the team's overall performance to estimate the player's contribution in points above league average per 100 possessions played.
 
