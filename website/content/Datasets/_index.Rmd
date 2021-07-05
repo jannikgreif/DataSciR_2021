@@ -22,21 +22,15 @@ We use the following datasets:
   - **_Player season stats_** : Player stats accumulated for each season
   - **_Player game stats_** : Performance data for each unique player/game combination - this datasets also includes the variable BPM we use as performance indicator
   
-[BPM](https://www.basketball-reference.com/about/bpm2.html) uses a player's box score information, position, and the team's overall performance to estimate the player's contribution in points above league average per 100 possessions played.
+[BPM](https://www.basketball-reference.com/about/bpm2.html) uses a players box score information, position, and the teams overall performance to estimate the players contribution in points above league average per 100 possessions played.
 
 
-We picked those players, which continuously played in the regular seasons 2016/17 - 2018/19. We didn't consider the playoffs here, as many players didn't get into the playoffs with their teams but still played a full regular season and therefore are provide enough interesting play-data for our analysis. Furthermore, we only wanted those players in our data set, which stayed at their respective team for the whole time of observation. The idea behind this was to eliminate team switches as possible factors that influence the player's performance aside those we want to observe. Additionally we wanted only those players who had on-court time in at least 80% of the games during their regular season.
+We picked those players, which continuously played in the regular seasons 2016/17 - 2018/19. We didn't consider the playoffs here, as many players didn't get into the playoffs with their teams but still played a full regular season and therefore provide enough interesting play-data for our analysis. Furthermore, we only wanted those players in our dataset, who stayed at their respective team for the whole observation time. The idea behind this was to eliminate team switches as possible factors that influence the players performance. Additionally we wanted only those players who had on-court time in at least 80% of the games during regular season.
 On this dataset we applied a cutoff value to get only those players, whose performance is relatively unstable in comparison to their colleagues (standard deviation for BPM was higher or equal to 8).
-The last parameter we wanted to include into our selection concerned about the players who have a minimal follower count of 1.000 users on Twitter.
+The last parameter we wanted to include into our selection is a minimum Twitter follower count of 1.000 to ensure social media activity.
 
 ### 2.2 Twitter Dataset
 
-With the given data we were now able to extract exactly those tweets using the Twitter API. To only extract tweets that can be assumed to be relevant for a specific game day, we delimited the time range of tweets to be considered for the extraction to the time between 24 hours and 45 minutes before a game (to be on the safe side, we first extracted tweets in a range of 48 hours before a game and boiled it down to 24 hours in an extra step). With the first limit we wanted to avoid that tweets, related to another match, get considered, the 45-minute delimiter was set according to the assumption, that it is unlikely for players to check their twitter just 45 minutes before a game. 
-After these parameters were set, we obtained the tweets for each player of our preselection-list discussed before. Alongside with the raw text, the date of creation, the count how often a post was retweeted, the reply count, the count of likes for each tweet and the quote count were added to the dataset of each player's tweets. A very important step for our later analysis was to map each tweet to the respective BBRef_Player_ID and the BBRef_Game_ID, to be able to address tweets based on a player- or a game-selection.
+With the given data we were able to extract the tweets using the Twitter API. To only extract tweets that can be assumed to be relevant for a specific game day, we delimited the time range of tweets to be considered for the extraction to the time between 24 hours and 45 minutes before a game (to be on the safe side, we first extracted tweets in a range of 48 hours before a game and boiled it down to 24 hours in an extra step). With the first limit we wanted to avoid that tweets, related to another match get considered. The 45 minute delimiter was set according to the assumption, that it is unlikely for players to check their twitter just 45 minutes before a game. 
+After these parameters were set, we obtained the tweets for each player of our preselection-list discussed before. Alongside with the raw text, the date of creation, the count how often a post was retweeted, the reply count, the like count for each tweet and the quote count were added to the dataset of each players tweets. A very important step for our later analysis was to map each tweet to the respective PlayerId and the GameId, to be able to address tweets based on a player- or a game-selection.
 The tweets were then processed further to extract the text and emojis to run a sentiment analysis.
-
-
-
-
-
-
