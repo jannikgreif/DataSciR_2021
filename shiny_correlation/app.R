@@ -16,7 +16,7 @@ load("data.RData")
 ui <- fluidPage(
 
     # Application title
-    titlePanel("Sentiment Analysis"),
+    titlePanel("Correlation BPM - Sentiments"),
 
     # Sidebar with slider inputs
     sidebarLayout(
@@ -27,7 +27,6 @@ ui <- fluidPage(
                                selected = "Clint Capela")
         ),
 
-        # Show a plot of the generated distribution
         mainPanel(
             plotOutput("corPlot")
         )

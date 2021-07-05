@@ -27,8 +27,6 @@ ui <- fluidPage(
                         choices = data$Player %>% unique(),
                         selected = "Clint Capela")
         ),
-        
-        # Show a plot of the generated distribution
         mainPanel(
             plotOutput("wordcloudPlot")
         )
