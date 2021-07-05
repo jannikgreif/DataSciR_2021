@@ -257,7 +257,7 @@ predictions <- model$.predictions[[1]] %>%
   bind_rows(model_mean_BPM$.predictions[[1]] %>%
               mutate(model = "mean BPM")) %>%
   bind_rows(model_only_sentiment$.predictions[[1]] %>%
-              mutate(model = "with only sentiments"))
+              mutate(model = "sentiments only"))
 
 predictions %>%
   ggplot(aes(BPM, .pred, color = model)) +
@@ -277,7 +277,7 @@ metrics <- model$.metrics[[1]] %>%
   bind_rows(model_mean_BPM$.metrics[[1]] %>%
               mutate(model = "mean BPM")) %>%
   bind_rows(model_only_sentiment$.metrics[[1]] %>%
-              mutate(model = "with only sentiments"))
+              mutate(model = "sentiments only"))
 
 metrics %>%
   select(.metric, .estimate, model)
