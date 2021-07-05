@@ -4,7 +4,7 @@ title: DataSciR
 
 ## Project Screencast
 
-https://www.youtube.com/watch?v=w7Ft2ymGmfc
+https://www.youtube.com/watch?v=VZLCjVUelCs
 
-{{< youtube w7Ft2ymGmfc >}}
+{{< youtube wVZLCjVUelCs >}}
 
