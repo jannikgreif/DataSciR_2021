@@ -8,24 +8,23 @@ library(lubridate)
 library(tidyverse)
 library(purrr)
 library(rvest)
+library(ranger)
 library(tidymodels)
 ```
 
-We setup a random forest regression model to predict the BPM of players. The dataset is the one previously used.
-We set up different models:
+One attempt to check whether the sentiments have an influence on the player's performance at all and therefore to investigate our findings in the correlation analysis, was to set up a random forest regression model to predict the BPM of players. The idea was to set up different models and compare the predictions of performance with and without the sentiments as input features:
 
  - mean BPM of the last 5 BPMs as a baseline model
  - model including only the sentiment scores
  - model including the last 5 BPMs, Position, Age, Month of the Game, Homegame, Trend, SRS_Team, SRS_Opponent
  - model including the last 5 BPMs, Position, Age, Month of the Game, Homegame, Trend, SRS_Team, SRS_Opponent and the sentiment scores
  
-Homegame indicates if the player played a homegame (1) or an away game (0). The Trend indicates the teams last 5 game performances - i.e. the sum of wins (+1) and losses (-1) is calculated. In order to measure a more longterm team performance we use SRS (Simple Rating System) which gives a score to each team according to their average point difference and strength of schedule. 0 marks the average score. The SRS for the previous season is used for the prediction.
+In detail, Homegame expresses whether the player played a homegame (1) or an away game (0). The Trend indicates the teams last 5 game performances - i.e. the sum of wins (+1) and losses (-1) is calculated. In order to measure a more longterm team performance we used the SRS (Simple Rating System) which gives a score to each team according to their average point difference and strength of schedule and where 0 marks the average score. The SRS for the previous season was used for the prediction.
 
-
-We start by loading the Tweets and extract the necessary columns and transform them. 
+We started by loading the tweets and extracted the necessary columns before transforming them. 
 ```{r load_tweets_and_transform, message = FALSE}
-data_dir <- "./data"
-sentiments_dir <- "data/sentiments"
+data_dir <- "../data"
+sentiments_dir <- "../data/sentiments"
 tweets_dir <- data_dir %>% paste("tweets", sep = "/")
 
 tweets <- list.files(tweets_dir, full.names = TRUE) %>% 
@@ -68,8 +67,7 @@ get_BPM_Trend <- function(player, game){
 games <- map2_dfr(games$BBRef_Player_ID, games$BBRef_Game_ID, ~ get_BPM_Trend(.x, .y)) # get the last 5 BPMs and Trend for each player/game combination
 ```
 
-
-Extract the SRS (Simple Rating System) for the previous season. This is done by parsing the html table from basketball-reference and use the teams shortcut to combine the data with the previous dataset.
+After that the SRS (Simple Rating System) for the previous season ot extracted. This was done by parsing the html table from [basketball-reference.com](https://basketball-reference.com) and using the teams shortcut to combine the data with the previous dataset.
 ```{r load_basketball_reference_data, message = FALSE}
 content <- read_html("https://www.basketball-reference.com/leagues/NBA_2018.html")
 tables <- content %>% html_table(fill = TRUE)
@@ -102,14 +100,14 @@ games <- games %>%
   left_join(team_stats, by = c("Season" = "Season_plus_one", "Opp" = "Team_name"))
 ```
 
-Rename some of the variables and calculate the mean BPM of the last 5 BPMs.
+Then some of the variables got renamed and the mean BPM of the last 5 BPMs got calculated.
 ```{r rename_columns, message = FALSE}
 data <- games %>%
   select(BBRef_Player_ID,BBRef_Game_ID,Age,Pos,BPM_5,BPM_4,BPM_3,BPM_2,BPM_1,Homegame, Month,SRS_Tm = SRS.x , SRS_Opp = SRS.y, BPM, Trend) %>%
   mutate(mean_BPM = rowMeans(games %>%select(BPM_5,BPM_4,BPM_3,BPM_2,BPM_1),na.rm = TRUE)) 
 ```
 
-Combine the sentiments with the dataset.
+In the last pre-processing step, the already computed sentiments got merged with the newly created data.
 ```{r combine_sentiments_with_data, message = FALSE}
 prep_tweets <- data_dir %>% paste("prep-tweets.csv", sep = "/") %>% read_csv()
 bing <- sentiments_dir %>% 
@@ -176,16 +174,17 @@ data <- data %>%
 data <- data %>% drop_na(BPM,BPM_5,BPM_4,BPM_3,BPM_2,BPM_1,bing,syuzhet,jockers_rinker,nrc,afinn)
 ```
 
-
 ```{r plot_BPM, message = FALSE}
 data %>%
   ggplot(aes(fct_reorder(BBRef_Player_ID,BPM), 
              BPM)) +
   geom_boxplot(outlier.alpha = 0.5) +
-  coord_flip()
+  coord_flip() +
+  xlab("BPM performance") +
+  ylab("BBRef_Player_ID")
 ```
 
-We start by selecting the relevant columns for the model and split the data into training and testing data. A validation split is performed on the training data in order to combat overfitting. Then each model is created using the recipe package. Using tune_grid() the model parameter mtry (number of predictors that will be randomly sampled at each split when creating the tree models), trees (number of trees contained in the ensemble) and min_n (minimum number of data points in a node that are required for the node to be split further) get tuned. The best model fit gets choosen based on the RMSE (Root Mean Square Error) which calculates the average distance between the predicted values and the actual values, i.e. the lower the RMSE, the better the model is able to fit a dataset. The importance score for each variable is saved as well.
+For the actual prediction task we started by selecting the relevant columns for the model and split the data into training and testing data with a proportion of 75% training to 25% testing. A validation split of 20% of the training set was then performed data in order to combat overfitting. Then each model was created using the recipe package. Using tune_grid(), the model parameter mtry (number of predictors that will be randomly sampled at each split when creating the tree models), trees (number of trees contained in the ensemble) and min_n (minimum number of data points in a node that are required for the node to be split further) got tuned. After tuning, the best model fit got choosen based on the RMSE (Root Mean Square Error) which calculates the average distance between the predicted values and the actual values, i.e. the lower the RMSE, the better the model is able to fit a dataset. The importance score for each variable was saved as well.
 
 ```{r predictive_model, message = FALSE}
 data <- data %>%
@@ -248,38 +247,37 @@ model_mean_BPM <- get_model(rf_rec_mean)
 model_only_sentiment <- get_model(rf_rec_only_sentiment)
 ```
 
-In order to determine which model predicted the BPM best a visualization is generated that displayes the predicted value (y-axis) and the true value (x-axis) for each model, meaning a perfectly fitted model would be the 45° line. The visualization doesn't allow for a clear interpretation since all models are scattered and no specific trend can be observed.
+In order to determine which model predicted the BPM performance best, a visualization is shown below that displays the predicted value (y-axis) and the true value (x-axis) for each model, meaning a perfectly fitted model would have all predictions on the the 45° line. The visualization doesn't allow for a clear interpretation since all models are scattered and no specific trend can be observed.
 
 ```{r predictions, message = FALSE}
 predictions <- model$.predictions[[1]] %>%
-  mutate(model = "ohne Sentimente") %>%
+  mutate(model = "without sentiments") %>%
   bind_rows(model_with_sentiment$.predictions[[1]] %>%
-              mutate(model = "mit Sentimente")) %>%
+              mutate(model = "with sentiments")) %>%
   bind_rows(model_mean_BPM$.predictions[[1]] %>%
-              mutate(model = "Mittelwert BPM")) %>%
+              mutate(model = "mean BPM")) %>%
   bind_rows(model_only_sentiment$.predictions[[1]] %>%
-              mutate(model = "nur Sentimente"))
+              mutate(model = "with only sentiments"))
 
 predictions %>%
   ggplot(aes(BPM, .pred, color = model)) +
   geom_abline(lty = 2, color = "gray80", size = 1.5) +
   geom_point(alpha = 0.3) +
   facet_wrap(~ model) + 
-  theme(legend.position="none") 
+  theme(legend.position="none") +
+  xlab("BPM performance") +
+  ylab("predicted performance")
 ```
-
-In order to determine which model predicted the values best, the RMSE and RSQ (R-Squared: proportion of variance in the dependent variable that can be explained by the independent variables) is used to further analyze the different models.
-The bar plot shows that the RMSE are in the range of `r metrics %>% filter(.metric == "rmse") %>% select(.estimate) %>% min() %>% round(2)` - `r metrics %>% filter(.metric == "rmse") %>% select(.estimate) %>% max() %>% round(2)`. Using RMSE as a metric the model without sentiment scores predicts the BPM best. The difference between the models RSQ on the other hand is quite large. All models don't explain the BPM well ranging from `r metrics %>% filter(.metric == "rsq") %>% select(.estimate) %>% min()` to `r metrics %>% filter(.metric == "rsq") %>% select(.estimate) %>% min()`. The models including sentiments scores best, directly followed by the model without sentiments. 
 
 ```{r metrics, message = FALSE}
 metrics <- model$.metrics[[1]] %>%
-  mutate(model = "ohne Sentimente") %>%
+  mutate(model = "without sentiments") %>%
   bind_rows(model_with_sentiment$.metrics[[1]] %>%
-              mutate(model = "mit Sentimente")) %>%
+              mutate(model = "with sentiments")) %>%
   bind_rows(model_mean_BPM$.metrics[[1]] %>%
-              mutate(model = "Mittelwert BPM")) %>%
+              mutate(model = "mean BPM")) %>%
   bind_rows(model_only_sentiment$.metrics[[1]] %>%
-              mutate(model = "nur Sentimente"))
+              mutate(model = "with only sentiments"))
 
 metrics %>%
   select(.metric, .estimate, model)
@@ -296,7 +294,9 @@ metrics %>%
   theme(axis.title.x = element_blank(), axis.title.y = element_blank())
 ```
 
-## Insert interpretation for variable importance
+Therefore, to determine which model predicted the values best, the RMSE and RSQ (R-Squared: proportion of variance in the dependent variable that can be explained by the independent variables) was used to further analyze the different models.
+The bar plot shows that the RMSE are in the range of `r metrics %>% filter(.metric == "rmse") %>% select(.estimate) %>% min() %>% round(2)` - `r metrics %>% filter(.metric == "rmse") %>% select(.estimate) %>% max() %>% round(2)`. Using RMSE as a metric the model without sentiment scores predicts the BPM best. The difference between the models's RSQ on the other hand is quite large. Here, all models don't explain the BPM well ranging from `r metrics %>% filter(.metric == "rsq") %>% select(.estimate) %>% min()` to `r metrics %>% filter(.metric == "rsq") %>% select(.estimate) %>% min()`. The models including sentiments predict the BPM performance best, directly followed by the model without sentiments.
+So even here, a direct influence of the sentiments as a feature can not be derived from the model, underlining our findings in the correlation analysis that the sentiments have no significant influence on a player's in-game performance.
 
 ```{r variable_importance, message = FALSE}
 get_variable_importance <- function(x){
@@ -314,7 +314,7 @@ get_variable_importance <- function(x){
     coord_flip() +
     theme(legend.position="none") +
     xlab("feature") +
-    ylab("importance") +
+    ylab("importance for prediction") +
     scale_fill_manual(values = c("#595959", "#DB2C2C")) 
 } 
 
@@ -322,9 +322,6 @@ get_variable_importance(model)
 get_variable_importance(model_with_sentiment)
 get_variable_importance(model_only_sentiment)
 ```
-Looking at the variable importance scores for the model including sentiments it can be observed that the syuzhet and jockers_rinker sentiment scores rank second and third. The (permutation) importance score is calculated by (1) measuring a basline RSQ , (2) permute the values of one feature and measure the RSQ. The importance score is the difference between the basline and the drop in overal RSQ caused by the permutation.
-The plot indicates a high influence of sentiment scores. But since the model has a low RSQ, this should be perceived carefully. 
-To further understand the influence of sentiment scores, a new model should be deployed with the goal to increase the RSQ. 
 
-
-
+A last step we did was to look at the importance scores of each sentiment analyzer method for the model including sentiments. Here it can be observed that the syuzhet and jockers_rinker sentiment scores rank first and second. The (permutation) importance score is calculated by (1) measuring a basline RSQ , (2) permuting the values of one feature and measure the RSQ. The importance score is the difference between the basline and the drop in overall RSQ caused by the permutation.
+The plot indicates a high influence of sentiment scores, but since the model has a low RSQ, this should be perceived carefully. To further understand the influence of sentiment scores, a new model should be deployed in further research with the goal to increase the RSQ. 
