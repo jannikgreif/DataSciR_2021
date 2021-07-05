@@ -265,8 +265,15 @@ predictions %>%
   geom_point(alpha = 0.3) +
   facet_wrap(~ model) + 
   theme(legend.position="none") +
-  xlab("BPM performance") +
-  ylab("predicted performance")
+  labs(
+      title = "Predicted BPM values vs. true BPM values",
+      subtitle = "Calculated for each model", 
+      y = "predicted BPM"
+    ) + 
+  theme(
+      plot.title = element_text(hjust = 0.5), 
+      plot.subtitle = element_text(hjust = 0.5)
+    ) 
 ```
 
 ```{r metrics, message = FALSE}
@@ -291,7 +298,15 @@ metrics %>%
   geom_text(aes(label=round(.estimate,4)), position=position_dodge(width=0.9), vjust=-0.25) + 
   theme(legend.position="none") +
   theme(axis.text.x = element_text(angle=90, vjust=.5, hjust=1)) + 
-  theme(axis.title.x = element_blank(), axis.title.y = element_blank())
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  labs(
+      title = "RMSE (Root Mean Square Error) and RSQ (R-Squared) ",
+      subtitle = "Calculated for each model"
+    ) + 
+  theme(
+      plot.title = element_text(hjust = 0.5), 
+      plot.subtitle = element_text(hjust = 0.5)
+    )
 ```
 
 Therefore, to determine which model predicted the values best, the RMSE and RSQ (R-Squared: proportion of variance in the dependent variable that can be explained by the independent variables) was used to further analyze the different models.
@@ -315,12 +330,20 @@ get_variable_importance <- function(x){
     theme(legend.position="none") +
     xlab("feature") +
     ylab("importance for prediction") +
-    scale_fill_manual(values = c("#595959", "#DB2C2C")) 
+    scale_fill_manual(values = c("#595959", "#DB2C2C"))+
+  labs(
+      title = "Variable Importance Scores",
+      subtitle = paste("Model:",name, sep=" ")
+    ) + 
+  theme(
+      plot.title = element_text(hjust = 0.5), 
+      plot.subtitle = element_text(hjust = 0.5)
+    ) 
 } 
 
-get_variable_importance(model)
-get_variable_importance(model_with_sentiment)
-get_variable_importance(model_only_sentiment)
+get_variable_importance(model, "without sentiments")
+get_variable_importance(model_with_sentiment, "with sentiments")
+get_variable_importance(model_only_sentiment, "sentiments only")
 ```
 
 A last step we did was to look at the importance scores of each sentiment analyzer method for the model including sentiments. Here it can be observed that the syuzhet and jockers_rinker sentiment scores rank first and second. The (permutation) importance score is calculated by (1) measuring a basline RSQ , (2) permuting the values of one feature and measure the RSQ. The importance score is the difference between the basline and the drop in overall RSQ caused by the permutation.
