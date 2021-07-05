@@ -377,5 +377,5 @@ get_variable_importance(model_with_sentiment, "with sentiments")
 get_variable_importance(model_only_sentiment, "sentiments only")
 ```
 
-A last step we looked at the importance scores of each model - mostly focusing on the model including the sentiments. It can be observed that the afinn, syuzhet and jockers_rinker sentiment scores score high importance scores. The (permutation) importance score is calculated by (1) measuring a basline RSQ , (2) permuting the values of one feature and measure the RSQ. The importance score is the difference between the basline and the drop in overall RSQ caused by the permutation.
+As last step we looked at the importance scores of each model - mostly focusing on the model including the sentiments. It can be observed that the afinn, syuzhet and jockers_rinker sentiment scores score high importance scores. The (permutation) importance score is calculated by (1) measuring a basline RSQ , (2) permuting the values of one feature and measure the RSQ. The importance score is the difference between the basline and the drop in overall RSQ caused by the permutation.
 The plot indicates a high influence of sentiment scores, but since the model has a low RSQ, this should be perceived carefully. 
