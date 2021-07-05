@@ -32,7 +32,7 @@ Languages:
           url: https://github.com/jannikgreif/DataSciR_2021
           weight: 10
         - identifier: pn
-          name: <i class="fas fa-file"></i> Project Notebook
+          name: <i class="fas fa-file"></i> Project notebook
           url: https://github.com/jannikgreif/DataSciR_2021/blob/main/Proposal/proposal.pdf
           weight: 20          
         - identifier: ps
