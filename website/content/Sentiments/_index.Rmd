@@ -11,6 +11,7 @@ text-align: left}
 
 ## 3. Sentiments
 
+To capture the attitudes for each tweet we obtained in the prior section, several sentiment analyzers were chosen. These analyzers check (for each tweet) each word against a predefined lexicon, that contains words and their respective sentiment scores. From the number of scores obtained by the analyzer for each tweet, one final sum of scores gets calculated.
 The following sentiment lexica were used to compute the sentiments for each tweet: 
 
 - **_Bing_** : positive/negative word list 
@@ -20,4 +21,9 @@ The following sentiment lexica were used to compute the sentiments for each twee
 - **_AFINN_** : word list with sentiments reaching on a discrete scale from -5 to 5 
 - **_Novak_** : list of emojis with sentiment scores reaching from -1 to 1
 
-Each lexicon is applied to the raw text of each tweet to calculate the sentiment scores. The results of the sentiment analysis are displayed in the Sentiment Analysis subpage.
+Each lexicon is applied to the preprocessed text of each tweet to calculate the sentiment scores. Finally all sentiments of a time window of 24 hours - 45 minutes before a game got aggregated to one representative sentiment score which then is used for the correlation analysis. To capture different facets of expressiveness, we generated three different aggregates:
+- The average sentiment each player received each game over all sentiments within the respective time range
+- The average sentiment each player received each game over all sentiments within the respective time range, weighted with the retweet count of each tweet
+- The proportion of tweets with a negative sentiment each player received each game over all sentiments within the respective time range
+
+The results of the sentiment analysis are displayed in the Sentiment Analysis subpage.

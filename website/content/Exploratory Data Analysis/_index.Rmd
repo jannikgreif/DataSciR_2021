@@ -57,7 +57,7 @@ sentiments <- sentiment_names %>%
 
 ### 4.1 Comparability of the Sentiment Lexicons
 
-In the beginning we wanted to assess if the sentiment scores the different sentiment lexicons provided for tweets were actually comparable. For that purpose we computed the Spearman rank correlation coefficient between tweet sentiment scores provided by each pair of sentiment lexicons to assess whether the ranking of the tweets according to one sentiment lexicon agrees with the ranking of the tweets according to another sentiment lexicon.
+In the beginning we wanted to assess if the different lexica sentiment scores for tweets were actually comparable. For that purpose we computed the Spearman rank correlation coefficient between tweet sentiment scores provided by each pair of sentiment lexica to assess whether the ranking of the tweets according to one sentiment lexicon agrees with the ranking of the tweets according to another sentiment lexicon.
 
 ```{r compute_sentiment_consensus_spearman, eval = TRUE, include = FALSE}
 sentiment_lexicons <- sentiments$sentiment_lexicon %>% unique()
@@ -86,7 +86,9 @@ sentiment_lexicon_consensus <- map2_dfr(sentiment_lexicons_a, sentiment_lexicons
     summarise(consensus = cor(ave_sentiment_a, ave_sentiment_b, method = "spearman", use = "complete.obs")) %>% 
     ungroup()
 })
+```
 
+```{r sentiment_corr, eval = TRUE, fig.width = 10, echo = FALSE}
 sentiment_lexicon_consensus %>% 
   ggplot(mapping = aes(x = sentiment_lexicon_a, y = sentiment_lexicon_b)) +
     geom_tile(mapping = aes(fill = consensus)) +
@@ -102,12 +104,13 @@ sentiment_lexicon_consensus %>%
       plot.subtitle = element_text(hjust = 0.5),
       axis.title.x = element_blank(),
       axis.title.y = element_blank()
-    ) 
+    )
 ```
+
 
 ### 4.2 Computing Sentiment Aggregates
 
-Since the sentiment scores were computed on a per-tweet basis we first had to aggregate the sentiment scores accordingly in order to capture the overall social media vibe players were receiving before games in a single number. For that purpose we considered  the sentiment scores of all tweets a respective player received in a 24-hour window before a respective game and aggregated them as follows:  
+Since the sentiment scores were computed on a per-tweet basis we first had to aggregate the sentiment scores accordingly in order to capture the overall social media vibe, players were receiving. For that purpose we considered  the sentiment scores of all tweets a player received in a 24 hour window before a game and aggregated them as follows:  
 
   - The average of the sentiment scores (mean)
   - The average of the sentiment scores weighted by the retweet count of the associated tweet (weighted mean)
@@ -132,9 +135,9 @@ sentiment_aggregates_24h_before_games <- tweets_24h_before_games %>%
 
 ### 4.3 Distribution of the Sentiment Aggregates and BPM
 Looking at the individual density curves we observed that the distributions of the average sentiment scores rougly fit the bell curve of a Normal distribution despite a few exceptions (esp. for the averaged sentiments for the emoji sentiment lexicon by Novak). 
-Besides the sentiment aggregates we also studied how the BPM perfomance indicator values are distributed for the different players. Similar to the unweighted and weighted sentiment averages before, BPM was also normally distributed
+We also studied how the BPM perfomance indicator values are distributed for the different players. Similar to the unweighted and weighted sentiment averages before, BPM was also normally distributed.
 
-Knowing that the BPM values were normally distributed for the different players it was sufficient to simply construct boxplots for the performance indicator to get a sense how the individual players performed in general in the two considered seasons and how their performance fluctuated. 
+Knowing that the BPM values were normally distributed for the different players, it was sufficient to simply construct boxplots for the performance indicator to get a sense how the individual players performed in general in the two considered seasons and how their performance fluctuated. 
 
 ```{r plot-boxplot-BPM, eval = TRUE, fig.width = 10, echo = FALSE}
 player_metadata %>% 
@@ -162,7 +165,7 @@ We included a RShiny App to showcase each players correlation between BPM perfor
 
 <iframe src="https://jannikgreif.shinyapps.io/DataSciR_correlation/" width="100%" height="650"></iframe>
 
-As one can see, the points of the different scatterplots appeared rather scattered and for the different sentiment 
+As one can see, the points of the different scatterplots appeared rather scattered. For the different sentiment 
 lexicons and players there was neither a strong nor directly visible (linear) relationship between the average tweet 
 sentiment and the BPM performance indicator. Even though some of the linear regression lines suggested a correlation, the
 correlations themselves were rather weak or even neglectable as indicated by the respective Pearson correlation 
@@ -184,9 +187,8 @@ every player there was at least one game day in which the average tweet sentimen
 other days. Additionally there were some players with game days associated with an extremely negative average tweet 
 sentiment in comparison to other days. To investigate these outliers more closely we created two word clouds for each 
 player, one for the smallest average tweet sentiment the player received and one for the highest. We used the tweet 
-sentiments created from the Jockers-Rinker lexicon for this purpose.
+sentiments created from the Jockers-Rinker lexicon for this purpose. On extremely positive sentiment values (outliers) the player had birthday.
 
 This RShiny App showcases the wordclouds for each player. 
 <iframe src="https://jannikgreif.shinyapps.io/DataSciR_wordclouds/" width="100%" height="650"></iframe>
 
-On extremely positive sentiment values (outliers) the player had birthday.
