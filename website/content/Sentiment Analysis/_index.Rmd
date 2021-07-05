@@ -58,7 +58,6 @@ sentiments <- sentiment_names %>%
 ### 4.1 Comparability of the Sentiment Lexicons
 
 In the beginning we wanted to assess if the sentiment scores the different sentiment lexicons provided for tweets were actually comparable. For that purpose we computed the Spearman rank correlation coefficient between tweet sentiment scores provided by each pair of sentiment lexicons to assess whether the ranking of the tweets according to one sentiment lexicon agrees with the ranking of the tweets according to another sentiment lexicon.
-
 ```{r compute_sentiment_consensus_spearman, eval = TRUE, include = FALSE}
 sentiment_lexicons <- sentiments$sentiment_lexicon %>% unique()
 # Create cross product of sentiment_lexicon with itself

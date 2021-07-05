@@ -1,7 +1,7 @@
 baseURL: /
 languageCode: en-US
 defaultContentLanguage: en
-title: Hugo Learn Documentation
+title: NBA Project
 theme: hugo-theme-learn
 metaDataFormat: yaml
 defaultContentLanguageInSubdir: yes
@@ -13,9 +13,9 @@ params:
   disableSearch: yes
   showVisitedLinks: no
   disableLandingPageButton: no
-  disableMermaid: no
+  disableMermaid: yes
   disableNextPrev: no
-  titleSeparator: '::'
+  titleSeparator: ':'
   themeVariant: "mine"
 outputs:
   home:
