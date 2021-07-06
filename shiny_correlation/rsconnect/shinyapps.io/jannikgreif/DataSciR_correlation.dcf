@@ -5,9 +5,8 @@ account: jannikgreif
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 4351103
-bundleId: 4788236
+bundleId: 4791179
 url: https://jannikgreif.shinyapps.io/DataSciR_correlation/
-when: 1625486961.18528
-lastSyncTime: 1625486961.18528
+when: 1625561906.17011
 asMultiple: FALSE
 asStatic: FALSE

@@ -57,7 +57,7 @@ sentiments <- sentiment_names %>%
 
 ### 4.1 Comparability of the Sentiment Lexicons
 
-In the beginning we wanted to assess if the different lexica sentiment scores for tweets were actually comparable. For that purpose we computed the Spearman rank correlation coefficient between tweet sentiment scores provided by each pair of sentiment lexica to assess whether the ranking of the tweets according to one sentiment lexicon agrees with the ranking of the tweets according to another sentiment lexicon.
+In the beginning we wanted to assess if the different lexica sentiment scores for tweets were actually comparable. For that purpose we computed the correlation between tweet sentiment scores provided by each pair of sentiment lexica to assess whether the ranking of the tweets according to one sentiment lexicon agrees with the ranking of the tweets according to another sentiment lexicon.
 
 ```{r compute_sentiment_consensus_spearman, eval = TRUE, include = FALSE}
 sentiment_lexicons <- sentiments$sentiment_lexicon %>% unique()
@@ -107,6 +107,8 @@ sentiment_lexicon_consensus %>%
     )
 ```
 
+Generally we can see that except of the Emoji Sentiment Lexicon by Novak all other sentiment lexicons seem to correlate rather well. Apparently the computed tweet sentiments from the Emoji Lexicon differ strongly from the sentiments of the other lexica which is reasonable since the Emoji Lexicon is only computed on the emojis contained in the tweet while the other lexica use the textual information of the tweet. The Jockers Rinker and Syuzhet lexicons are most similar with a correlation coefficient around 0.95. This intuitively also makes sense since Jockers-Rinker is a combined version of Syuzhet and Bing as mentioned before.
+
 
 ### 4.2 Computing Sentiment Aggregates
 
@@ -134,8 +136,8 @@ sentiment_aggregates_24h_before_games <- tweets_24h_before_games %>%
 
 
 ### 4.3 Distribution of the Sentiment Aggregates and BPM
-Looking at the individual density curves we observed that the distributions of the average sentiment scores rougly fit the bell curve of a Normal distribution despite a few exceptions (esp. for the averaged sentiments for the emoji sentiment lexicon by Novak). 
-We also studied how the BPM perfomance indicator values are distributed for the different players. Similar to the unweighted and weighted sentiment averages before, BPM was also normally distributed.
+Looking at the individual density curves we observed that the distributions of the average sentiment scores rougly fit the bell curve of a Normal distribution.
+Similar to the unweighted and weighted sentiment averages before, BPM was also normally distributed.
 
 Knowing that the BPM values were normally distributed for the different players, it was sufficient to simply construct boxplots for the performance indicator to get a sense how the individual players performed in general in the two considered seasons and how their performance fluctuated. 
 
@@ -166,7 +168,7 @@ We included a RShiny App to showcase each players correlation between BPM perfor
 <iframe src="https://jannikgreif.shinyapps.io/DataSciR_correlation/" width="100%" height="650"></iframe>
 
 As one can see, the points of the different scatterplots appeared rather scattered. For the different sentiment 
-lexicons and players there was neither a strong nor directly visible (linear) relationship between the average tweet 
+lexica and players there was neither a strong nor directly visible (linear) relationship between the average tweet 
 sentiment and the BPM performance indicator. Even though some of the linear regression lines suggested a correlation, the
 correlations themselves were rather weak or even neglectable as indicated by the respective Pearson correlation 
 coefficients *r* that were relatively small (mostly less than 0.1). Additionally most of the *p*-values of the associated
@@ -176,19 +178,19 @@ significantly different from 0 (and might have appeared due to random chance).
 Nevertheless, there were also some counter examples where the Pearson correlation coefficient appeared rather 
 significant. The player Jaylen Brown for example showed a positive correlation for the Afinn lexicon with a *p*-value 
 below 0.05. However, since the correlations were rather weak, not significant and somehow contradicting for other 
-sentiment lexicons (compare that the correlation was negative for the nrc lexicon), it is debatable if the positive 
+sentiment lexica (compare that the correlation was negative for the nrc lexicon), it is debatable if the positive 
 correlation is generalizable for the entire population or even the single player alone. 
 
 Due to these reasons we had to conclude that there is no evidence of a significantly strong linear correlation between 
-the average sentiment of tweets players receive within 24 hours before games and their performance within the games. 
+the average sentiment of tweets, players receive within 24 hours before games and their performance within the games. 
 
 There was however another interesting observation the scatterplots revealed, namely the prominent outliers. For almost 
 every player there was at least one game day in which the average tweet sentiment was vastly more positive compared to 
 other days. Additionally there were some players with game days associated with an extremely negative average tweet 
 sentiment in comparison to other days. To investigate these outliers more closely we created two word clouds for each 
 player, one for the smallest average tweet sentiment the player received and one for the highest. We used the tweet 
-sentiments created from the Jockers-Rinker lexicon for this purpose. On extremely positive sentiment values (outliers) the player had birthday.
+sentiments created from the Jockers-Rinker lexicon for this purpose. On extremely positive sentiment values (outliers) the player had birthday. This RShiny App showcases the wordclouds for each player. 
 
-This RShiny App showcases the wordclouds for each player. 
 <iframe src="https://jannikgreif.shinyapps.io/DataSciR_wordclouds/" width="100%" height="650"></iframe>
 
+The most prominent observation derived from the wordclouds was that the best average sentiments were frequently associated with the words "happy" and "birthday", which indicated that these players were receiving birthday wishes on that same game day. Besides birthdays it appeared that other players received positive tweet sentiments due to another important day or event in their life. For Stephen Curry the terms "baby", "congrats", "boy", "family", "hands", "blue" and "eyes" occurred rather frequently. People were congratulating him for another baby that was on the way.

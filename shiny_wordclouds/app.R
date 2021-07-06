@@ -16,18 +16,16 @@ load("data.RData")
 
 ui <- fluidPage(
     
-    # Application title
     titlePanel("Wordclouds"),
     
-    # Sidebar with slider inputs
-    sidebarLayout(
-        sidebarPanel(
+    fluidRow(
+        column(width=12,
             selectInput("names",
                         "Select player:",
                         choices = data$Player %>% unique(),
                         selected = "Clint Capela")
         ),
-        mainPanel(
+        column(width=12,
             plotOutput("wordcloudPlot")
         )
     )

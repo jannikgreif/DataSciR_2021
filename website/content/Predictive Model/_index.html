@@ -48,8 +48,8 @@ saved as well.</p>
 performance best, a visualization is shown below that
 displays the predicted values (y-axis) and the true values
 (x-axis) for each model, meaning a perfectly fitted model
-would align all points on the the 45° line. The
-visualization doesn’t allow for a clear interpretation since
+would align all points on the dashed line. The
+visualization doesn’t allow a clear interpretation since
 all models are scattered and no specific trend can be
 observed.</p>
 <p><img src="/Predictive Model/_index_files/figure-html/modelvisualisation_predictions-1.png" width="960" /></p>
@@ -63,18 +63,18 @@ predicted values and the actual values) and RSQ (R-Squared: proportion of varian
 the dependent variable that can be explained by the
 independent variables) was used to further analyze the
 different models.
-The bar plot shows that the RMSE are in the range of 7.7 - 8.15. Using RMSE as a metric the model without sentiment scores predicts
+The bar plot shows that the RMSE are in the range of 7.71 - 8.15. Using RMSE as a metric the model without sentiment scores predicts
 the BPM best. The difference between the models RSQ on the
-other hand is quite large. Here, all models don’t explain the
-BPM well ranging from 0.0186973 to 0.1007016.
+other hand is quite large. All models don’t explain the
+BPM well ranging from 0.017 to 0.1012.
 So even here, a direct influence of the sentiments as a
 feature can not be derived from the model, underlining our
 findings in the correlation analysis that the sentiments have no significant influence on a players in-game performance.</p>
 </div>
 <div id="variable-importance-scores" class="section level3">
 <h3>5.4 Variable Importance Scores</h3>
-<p><img src="/Predictive Model/_index_files/figure-html/modelvisualisation_variableimportance-1.png" width="960" /><img src="/Predictive Model/_index_files/figure-html/modelvisualisation_variableimportance-2.png" width="960" /><img src="/Predictive Model/_index_files/figure-html/modelvisualisation_variableimportance-3.png" width="960" /></p>
 <p>As last step we looked at the importance scores of each model - mostly focusing on the model including the sentiments. It can be observed that the afinn, syuzhet and jockers_rinker sentiment scores score high importance scores. The (permutation) importance score is calculated by (1) measuring a basline RSQ , (2) permuting the values of one feature and measure the RSQ. The importance score is the difference between the basline and the drop in overall RSQ caused by the permutation.
 The plot indicates a high influence of sentiment scores, but since the model has a low RSQ, this should be perceived carefully.</p>
+<p><img src="/Predictive Model/_index_files/figure-html/modelvisualisation_variableimportance-1.png" width="960" /><img src="/Predictive Model/_index_files/figure-html/modelvisualisation_variableimportance-2.png" width="960" /><img src="/Predictive Model/_index_files/figure-html/modelvisualisation_variableimportance-3.png" width="960" /></p>
 </div>
 </div>

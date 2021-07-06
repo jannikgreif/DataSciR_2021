@@ -258,8 +258,8 @@ In order to determine which model predicted the BPM
 performance best, a visualization is shown below that 
 displays the predicted values (y-axis) and the true values 
 (x-axis) for each model, meaning a perfectly fitted model 
-would align all points on the the 45° line. The 
-visualization doesn't allow for a clear interpretation since 
+would align all points on the dashed line. The 
+visualization doesn't allow a clear interpretation since 
 all models are scattered and no specific trend can be 
 observed.
 
@@ -334,13 +334,16 @@ independent variables) was used to further analyze the
 different models.
 The bar plot shows that the RMSE are in the range of `r metrics %>% filter(.metric == "rmse") %>% select(.estimate) %>% min() %>% round(2)` - `r metrics %>% filter(.metric == "rmse") %>% select(.estimate) %>% max() %>% round(2)`. Using RMSE as a metric the model without sentiment scores predicts 
 the BPM best. The difference between the models RSQ on the 
-other hand is quite large. Here, all models don't explain the
-BPM well ranging from `r metrics %>% filter(.metric == "rsq") %>% select(.estimate) %>% min()` to `r metrics %>% filter(.metric == "rsq") %>% select(.estimate) %>% max()`. 
+other hand is quite large. All models don't explain the
+BPM well ranging from `r metrics %>% filter(.metric == "rsq") %>% select(.estimate) %>% min()%>% round(4)` to `r metrics %>% filter(.metric == "rsq") %>% select(.estimate) %>% max()%>% round(4)`. 
 So even here, a direct influence of the sentiments as a 
 feature can not be derived from the model, underlining our 
 findings in the correlation analysis that the sentiments have no significant influence on a players in-game performance.
 
 ### 5.4 Variable Importance Scores
+
+As last step we looked at the importance scores of each model - mostly focusing on the model including the sentiments. It can be observed that the afinn, syuzhet and jockers_rinker sentiment scores score high importance scores. The (permutation) importance score is calculated by (1) measuring a basline RSQ , (2) permuting the values of one feature and measure the RSQ. The importance score is the difference between the basline and the drop in overall RSQ caused by the permutation.
+The plot indicates a high influence of sentiment scores, but since the model has a low RSQ, this should be perceived carefully.
 
 ```{r variable_importance, message = FALSE, include = FALSE}
 get_variable_importance <- function(x, name){
@@ -376,6 +379,3 @@ get_variable_importance(model, "without sentiments")
 get_variable_importance(model_with_sentiment, "with sentiments")
 get_variable_importance(model_only_sentiment, "sentiments only")
 ```
-
-As last step we looked at the importance scores of each model - mostly focusing on the model including the sentiments. It can be observed that the afinn, syuzhet and jockers_rinker sentiment scores score high importance scores. The (permutation) importance score is calculated by (1) measuring a basline RSQ , (2) permuting the values of one feature and measure the RSQ. The importance score is the difference between the basline and the drop in overall RSQ caused by the permutation.
-The plot indicates a high influence of sentiment scores, but since the model has a low RSQ, this should be perceived carefully. 

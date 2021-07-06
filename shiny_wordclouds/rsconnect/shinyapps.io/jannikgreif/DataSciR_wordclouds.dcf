@@ -5,9 +5,8 @@ account: jannikgreif
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 4351254
-bundleId: 4788231
+bundleId: 4791195
 url: https://jannikgreif.shinyapps.io/DataSciR_wordclouds/
-when: 1625486801.82811
-lastSyncTime: 1625486801.82811
+when: 1625562162.04813
 asMultiple: FALSE
 asStatic: FALSE
