@@ -9,25 +9,24 @@ The project aims to discover a significant impact of social media posts addresse
 [The screencast can be found here.](https://www.youtube.com/watch?v=VZLCjVUelCs)
 
 ### Prerequisites:
-RStudio (version 1.4 or higher)
-
-R-packages:
-* tidyverse (version or higher)
-* rtweet (version or higher)
-* academictwitteR (version or higher)
-* anytime (version or higher)
-* rvest (version or higher)
-* naniar (version or higher)
-* stringr (version or higher)
-* textclean (version or higher)
-* magrittr (version or higher)
-* sentimentr (version or higher)
-* tidytext (version or higher)
-* ggwordcloud (version or higher)
-* lubridate (version or higher)
-* purrr (version or higher)
-* ranger (version or higher)
-* tidymodels (version or higher)
+* RStudio (version 1.4 or higher)
+* R-packages:
+    * tidyverse (version or higher)
+    * rtweet (version or higher)
+    * academictwitteR (version or higher)
+    * anytime (version or higher)
+    * rvest (version or higher)
+    * naniar (version or higher)
+    * stringr (version or higher)
+    * textclean (version or higher)
+    * magrittr (version or higher)
+    * sentimentr (version or higher)
+    * tidytext (version or higher)
+    * ggwordcloud (version or higher)
+    * lubridate (version or higher)
+    * purrr (version or higher)
+    * ranger (version or higher)
+    * tidymodels (version or higher)
 
 ### Important notes:
 * The whole R-code for our project is incorporated into our final project notebook.
@@ -38,5 +37,4 @@ R-packages:
 * All code sections can be found as separate .Rmd files in the `notebooks` directory. These codes can be executed independently (as long as they have access to the existing data in this repository).
 
 ### Screencast:
-{{< youtube VZLCjVUelCs >}}
-
+<iframe width="560" height="315" src="https://www.youtube.com/embed/VZLCjVUelCs" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
