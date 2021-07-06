@@ -60,11 +60,11 @@ sentiments_dir <- data_dir %>% paste("sentiments", sep = "/")
 
 # Twitter Api Credentials
 twitter_app_name <- "DataSciR"
-twitter_api_key <- "he8beW6mFPz12r8QiqtXsZbLN" # Insert API key here
-twitter_api_secret_key <- "yFnZfhVitCl9fWixlImG6BRGkCX7c2HjlggHv3HgSYtnJIDokX" # Insert API key secret here
-twitter_access_token <- "1397627861503287305-8YHK3ANCzUt0x0Ufdb1OICJ75i4fns" # Insert access token here
-twitter_access_token_secret <- "cbK5fyPzVLtczRmWnMiDuZOLrvSaJldaSDQRZ31Hubgki" # Insert access token secret here
-twitter_bearer_token <- "AAAAAAAAAAAAAAAAAAAAAMJSQAEAAAAAxo6ezvCA34%2F%2B1gBbknootwxLdqs%3DtP8sqsQarCLEhnQXuFYXN79PxWfpG0btbSvDmBEZfePpM23Zyy" # Insert bearer-token here
+twitter_api_key <- "" # Insert API key here
+twitter_api_secret_key <- "" # Insert API key secret here
+twitter_access_token <- "" # Insert access token here
+twitter_access_token_secret <- "" # Insert access token secret here
+twitter_bearer_token <- "" # Insert bearer-token here
 
 twitter_token <- create_token(
   app = twitter_app_name,
@@ -1773,9 +1773,9 @@ To further investigate the findings we made, we wanted to elaborate the impact o
 
 ### 9.2. Further Considerations
 Reflecting the overall project and its outcome some consideration regarding the whole project setup can be done:\n
- * For the twitter data, domain specific and more advanced sentiment extraction methods could be found or existing analyzers be tuned
- * For the prediction model, the input variables should be reviewed to gain a better prediction outcome
- * Generally the correlation analysis could be decoupled from the BPM performance variable and be applied to component variables of the BMP score (e.g. a correlation between the sentiments and the 3-point-field-goal percentage)
- * Further assumptions could be incorporated into the process, like the fact that some players don't manage their own twitter accounts at all but let professional social-media agencies monitor the activities. Such accounts are of course irrelevant for our analysis
+ - For the twitter data, domain specific and more advanced sentiment extraction methods could be found or existing analyzers be tuned
+ - For the prediction model, the input variables should be reviewed to gain a better prediction outcome
+ - Generally the correlation analysis could be decoupled from the BPM performance variable and be applied to component variables of the BMP score (e.g. a correlation between the sentiments and the 3-point-field-goal percentage)
+ - Further assumptions could be incorporated into the process, like the fact that some players don't manage their own twitter accounts at all but let professional social-media agencies monitor the activities. Such accounts are of course irrelevant for our analysis
 
 ## 10. References
