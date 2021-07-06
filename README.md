@@ -1,5 +1,5 @@
 ## Data Science with R (DataSciR) 
-<img src="https://raw.githubusercontent.com/jannikgreif/DataSciR_2021/main/datascir_w300.png" width="160px" align="right">
+<img src="https://raw.githubusercontent.com/jannikgreif/DataSciR_2021/main/Screencast%2BLogo/datascir_w300.png" width="160px" align="right">
 
 This github repository is part of the [Data Science with R](https://brain.cs.uni-magdeburg.de/kmd/DataSciR/ "Data Science with R") seminar 2021. 
 
